@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engenharia do Caos e Escalabilidade na AWS - Abordagem Pedagógica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #232F3E; /* AWS Navy */
+            color: #FFFFFF;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .slide-container {
+            display: none;
+            min-height: 100vh;
+            padding: 2rem;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        .slide-container.active {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .aws-orange { color: #FF9900; }
+        .bg-aws-orange { background-color: #FF9900; }
+        .aws-blue { color: #00A1C9; }
+
+        /* Controls */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 50;
+        }
+
+        .control-btn {
+            background-color: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 14px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        .control-btn:hover {
+            background-color: #FF9900;
+            color: #111827;
+            transform: scale(1.1);
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background-color: #FF9900;
+            transition: width 0.3s ease;
+            z-index: 100;
+        }
+
+        .slide-indicator {
+            position: fixed;
+            top: 14px;
+            right: 20px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #9CA3AF;
+            background: rgba(17, 24, 39, 0.7);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 50;
+        }
+
+        @media print {
+            @page {
+                size: landscape;
+                margin: 0;
+            }
+
+            body {
+                background-color: #232F3E !important;
+                color: #FFFFFF !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                overflow: visible !important;
+            }
+
+            .controls,
+            .progress-bar,
+            .slide-indicator,
+            .no-print {
+                display: none !important;
+            }
+
+            .slide-container {
+                display: flex !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                min-height: 100vh !important;
+                height: 100vh !important;
+                padding: 2.5rem !important;
+                box-sizing: border-box !important;
+                opacity: 1 !important;
+                transform: none !important;
+                animation: none !important;
+                justify-content: center !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="progress-bar" id="progress"></div>
+    <div class="slide-indicator" id="slide-indicator">1 / 13</div>
+
+    <!-- Slide 1: Capa & Contexto Docente -->
+    <div class="slide-container active" id="slide-1">
+        <div class="max-w-6xl mx-auto w-full text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-aws-orange text-sm font-semibold tracking-wide uppercase mb-6">
+                <i class="fas fa-graduation-cap"></i> Abordagem Pedagógica & Engenharia de Nuvem
+            </div>
+            <h1 class="text-5xl md:text-6xl font-extrabold mb-4 aws-orange leading-tight">
+                Engenharia do Caos e Escalabilidade na AWS
+            </h1>
+            <h2 class="text-2xl md:text-3xl mb-10 text-gray-300 font-light">
+                Uma Abordagem Pedagógica conectando Andrew Tanenbaum à Produção
+            </h2>
+            
+            <div class="flex flex-col md:flex-row justify-center items-center gap-8 md:gap-16 mt-8 p-6 bg-gray-800/80 rounded-2xl border border-gray-700 max-w-4xl mx-auto shadow-2xl">
+                <div class="text-left">
+                    <h3 class="text-2xl font-bold text-white">Msc. Prof. Rafael Levi</h3>
+                    <p class="text-base text-gray-300 mt-1"><i class="fas fa-university text-blue-400 mr-2"></i> Docente de Sistemas Distribuídos — UNIFAN</p>
+                    <p class="text-base text-gray-400"><i class="fas fa-cloud aws-orange mr-2"></i> Cloud Architect & Site Reliability Engineer (SRE)</p>
+                    <p class="text-sm text-gray-500 mt-1"><i class="fas fa-certificate text-green-400 mr-2"></i> AWS Solutions Architect | ACM Member | Mestre (SENAI CIMATEC)</p>
+                </div>
+                <div class="flex items-center gap-6 border-t md:border-t-0 md:border-l border-gray-700 pt-4 md:pt-0 md:pl-8">
+                    <i class="fab fa-aws text-7xl aws-orange"></i>
+                    <i class="fab fa-docker text-6xl aws-blue"></i>
+                    <i class="fab fa-github text-6xl text-white"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 2: O Diagnóstico: A Síndrome da Caixa-Preta -->
+    <div class="slide-container" id="slide-2">
+        <div class="max-w-6xl mx-auto w-full">
+            <div class="text-center mb-6">
+                <span class="text-xs font-mono uppercase tracking-widest text-orange-400">Ponto de Partida Curricular</span>
+                <h2 class="text-4xl md:text-5xl font-bold aws-orange mt-1">O Diagnóstico: A Síndrome da Caixa-Preta</h2>
+                <p class="text-gray-300 text-sm mt-1">O abismo entre o exame tradicional de graduação e a realidade de produção</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch mt-6">
+                <!-- Coluna 1: A Academia Teórica -->
+                <div class="bg-gray-800/90 p-6 rounded-2xl text-center shadow-xl border border-gray-700 flex flex-col items-center justify-between">
+                    <div class="flex flex-col items-center">
+                        <div class="relative mb-3 group">
+                            <img 
+                                src="https://images-na.ssl-images-amazon.com/images/P/8576051427.01.LZZZZZZZ.jpg" 
+                                alt="Capa do Livro Sistemas Distribuídos - Andrew S. Tanenbaum" 
+                                class="w-32 h-44 object-cover rounded shadow-2xl border border-gray-600 transition-transform duration-300 group-hover:scale-105"
+                                onerror="this.onerror=null; this.src='https://placehold.co/240x320/1e293b/f8fafc?text=Sistemas+Distribuídos\nTanenbaum';"
+                            />
+                            <span class="absolute bottom-1 right-1 bg-black/80 text-[10px] text-gray-300 px-1.5 py-0.5 rounded font-mono">2ª Edição</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">O Modelo Tradicional</h3>
+                        <p class="text-xs text-gray-300 mt-1 font-semibold">Teoremas & Classificações no Papel</p>
+                    </div>
+                    <ul class="text-xs text-gray-400 space-y-2 text-left mt-3 bg-gray-900/60 p-3 rounded-lg w-full border border-gray-700/60">
+                        <li><i class="fas fa-times text-red-400 mr-1.5"></i> 8 formas de transparência decoradas</li>
+                        <li><i class="fas fa-times text-red-400 mr-1.5"></i> Provas discursivas sobre falhas bizantinas</li>
+                        <li><i class="fas fa-times text-red-400 mr-1.5"></i> Zero vivência com hardware quebrado</li>
+                    </ul>
+                </div>
+                
+                <!-- Coluna 2: O Abismo & A Síndrome -->
+                <div class="flex flex-col justify-center items-center text-center p-4 bg-gray-850/60 rounded-2xl border border-dashed border-gray-700">
+                    <div class="w-14 h-14 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-2xl mb-3 animate-pulse">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h4 class="text-lg font-bold aws-orange">A "Síndrome da Caixa-Preta"</h4>
+                    <p class="text-xs text-gray-300 mt-2 leading-relaxed">
+                        O estudante aprende a clicar no console e copiar tutoriais na web (<strong>ClickOps</strong>), mas não compreende que o <span class="text-blue-300 font-semibold">Load Balancer</span> nada mais é do que a materialização exata da <span class="text-green-300 font-semibold">Transparência de Falha</span> descrita por Tanenbaum há 30 anos.
+                    </p>
+                    <div class="mt-4 flex items-center gap-2 text-gray-400 text-xs font-mono">
+                        <span>Lousa Teórica</span>
+                        <i class="fas fa-arrows-left-right text-aws-orange"></i>
+                        <span>Produção na Nuvem</span>
+                    </div>
+                </div>
+
+                <!-- Coluna 3: A Realidade de Produção -->
+                <div class="bg-gray-800/90 p-6 rounded-2xl text-center shadow-xl border border-gray-700 flex flex-col items-center justify-between">
+                    <div class="flex flex-col items-center">
+                        <div class="flex justify-center gap-3 mb-4 mt-2">
+                            <div class="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center text-2xl text-aws-orange"><i class="fab fa-aws"></i></div>
+                            <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-2xl text-blue-400"><i class="fab fa-docker"></i></div>
+                            <div class="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center text-2xl text-green-400"><i class="fas fa-network-wired"></i></div>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">O Mercado Real</h3>
+                        <p class="text-xs text-gray-300 mt-1 font-semibold">SRE & Alta Disponibilidade</p>
+                    </div>
+                    <ul class="text-xs text-gray-400 space-y-2 text-left mt-3 bg-gray-900/60 p-3 rounded-lg w-full border border-gray-700/60">
+                        <li><i class="fas fa-check text-green-400 mr-1.5"></i> Datacenters inteiros sofrendo blecaute</li>
+                        <li><i class="fas fa-check text-green-400 mr-1.5"></i> Estouro de conexões no MySQL em pico</li>
+                        <li><i class="fas fa-check text-green-400 mr-1.5"></i> Exigência de 99.99% de SLA sem pânico</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 3: Os 3 Desafios Cognitivos na Graduação -->
+    <div class="slide-container" id="slide-3">
+        <div class="max-w-6xl mx-auto w-full">
+            <div class="text-center mb-8">
+                <span class="text-xs font-mono uppercase tracking-widest text-orange-400">Diagnóstico Pedagógico</span>
+                <h2 class="text-4xl md:text-5xl font-bold aws-orange mt-1">Os 3 Desafios Cognitivos na Graduação</h2>
+                <p class="text-gray-300 text-sm mt-1">Barreiras mapeadas na transição do discente entre teoria acadêmica e infraestrutura moderna</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Desafio 1 -->
+                <div class="bg-gray-800/90 rounded-2xl p-6 border border-blue-500/40 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-2xl mb-4">
+                            <i class="fas fa-puzzle-piece"></i>
+                        </div>
+                        <span class="text-xs font-mono text-blue-400 uppercase tracking-wider block font-bold">Desafio 1</span>
+                        <h3 class="text-xl font-bold text-white mt-1 mb-3">Sobrecarga & Fragmentação</h3>
+                        <p class="text-sm text-gray-300 leading-relaxed">
+                            O estudante aprende Docker de um lado, Git em outro, consome tutoriais de microsserviços e decora nomes da AWS de forma isolada.
+                        </p>
+                    </div>
+                    <div class="mt-4 p-3 bg-gray-900 rounded-xl border border-gray-700 text-xs text-gray-400">
+                        <strong class="text-white block mb-0.5"><i class="fas fa-bolt text-yellow-400 mr-1"></i> Sintoma:</strong>
+                        Falta a visão de <strong>System Design</strong>: entender o ciclo de vida completo do tráfego e do dado na rede.
+                    </div>
+                </div>
+
+                <!-- Desafio 2 -->
+                <div class="bg-gray-800/90 rounded-2xl p-6 border border-yellow-500/40 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-yellow-500/20 text-yellow-400 flex items-center justify-center text-2xl mb-4">
+                            <i class="fas fa-rainbow"></i>
+                        </div>
+                        <span class="text-xs font-mono text-yellow-400 uppercase tracking-wider block font-bold">Desafio 2</span>
+                        <h3 class="text-xl font-bold text-white mt-1 mb-3">A Ilusão do "Happy Path"</h3>
+                        <p class="text-sm text-gray-300 leading-relaxed">
+                            Vídeos e tutoriais da internet onde os comandos rodam de primeira, a rede física nunca oscila e limites de conexões nunca são atingidos.
+                        </p>
+                    </div>
+                    <div class="mt-4 p-3 bg-gray-900 rounded-xl border border-gray-700 text-xs text-gray-400">
+                        <strong class="text-white block mb-0.5"><i class="fas fa-bolt text-yellow-400 mr-1"></i> Consequência:</strong>
+                        O aluno nunca viu falha física em laboratório controlado; entra em desespero no primeiro incidente real.
+                    </div>
+                </div>
+
+                <!-- Desafio 3 -->
+                <div class="bg-gray-800/90 rounded-2xl p-6 border border-red-500/40 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center text-2xl mb-4">
+                            <i class="fas fa-laptop-code"></i>
+                        </div>
+                        <span class="text-xs font-mono text-red-400 uppercase tracking-wider block font-bold">Desafio 3</span>
+                        <h3 class="text-xl font-bold text-white mt-1 mb-3">O Vício do "CRUD Local"</h3>
+                        <p class="text-sm text-gray-300 leading-relaxed">
+                            Anos construindo apenas aplicações em <code class="text-orange-300">localhost:3000</code> com MySQL local, reforçando vícios de escala:
+                        </p>
+                        <ul class="text-xs text-gray-300 mt-2 space-y-1.5 pl-3 list-disc">
+                            <li>Suposição de latência de rede zero;</li>
+                            <li>Arquiteturas stateful (sessões em disco);</li>
+                            <li>Inexistência de concorrência massiva.</li>
+                        </ul>
+                    </div>
+                    <div class="mt-4 p-3 bg-gray-900 rounded-xl border border-gray-700 text-xs text-gray-400">
+                        <strong class="text-white block mb-0.5"><i class="fas fa-bolt text-yellow-400 mr-1"></i> Quebra:</strong>
+                        Inviabilidade estrutural para suportar escalabilidade elástica horizontal.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 4: A Resposta Metodológica: PBL com Ancoragem Regional -->
+    <div class="slide-container" id="slide-4">
+        <div class="max-w-6xl mx-auto w-full">
+            <div class="text-center mb-6">
+                <span class="text-xs font-mono uppercase tracking-widest text-orange-400">Metodologia Ativa UNIFAN</span>
+                <h2 class="text-4xl md:text-5xl font-bold aws-orange mt-1">PBL com Ancoragem Regional</h2>
+                <p class="text-gray-300 text-sm mt-1">Trocando cenários fictícios por um problema autêntico do nosso ecossistema</p>
+            </div>
+            
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-gray-900 p-5 rounded-xl border border-blue-500/30">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fas fa-ticket-alt text-blue-400 text-2xl"></i>
+                            <h4 class="text-base font-bold text-white">O Cenário Autêntico</h4>
+                        </div>
+                        <p class="text-xs text-gray-300 leading-relaxed">
+                            Bilhetagem em tempo real para o <strong>Festival de Inverno de Feira de Santana</strong>.
+                        </p>
+                    </div>
+
+                    <div class="bg-gray-900 p-5 rounded-xl border border-red-500/30">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fas fa-chart-line text-red-400 text-2xl"></i>
+                            <h4 class="text-base font-bold text-white">Requisitos de Negócio</h4>
+                        </div>
+                        <p class="text-xs text-gray-300 leading-relaxed">
+                            10.000 requisições simultâneas na abertura do lote; custo financeiro por segundo fora do ar.
+                        </p>
+                    </div>
+
+                    <div class="bg-gray-900 p-5 rounded-xl border border-green-500/30">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fas fa-user-shield text-green-400 text-2xl"></i>
+                            <h4 class="text-base font-bold text-white">Mudança de Postura</h4>
+                        </div>
+                        <p class="text-xs text-gray-300 leading-relaxed">
+                            O aluno deixa de ser espectador passivo e assume o papel de <strong>Engenheiro de SRE</strong>.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-gradient-to-r from-blue-900/40 via-gray-900 to-orange-900/30 rounded-xl border border-gray-700 text-sm text-gray-300 flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full bg-aws-orange text-gray-900 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    <div>
+                        <strong class="text-white">A premissa pedagógica:</strong> Quando o discente entende o impacto econômico e social da indisponibilidade de um evento da sua cidade, a relação com o aprendizado deixa de ser a busca por uma nota e passa a ser a busca pela <em>confiabilidade de engenharia</em>.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 5: A Nuvem como Laboratório de Física Teórica -->
+    <div class="slide-container" id="slide-5">
+        <div class="max-w-6xl mx-auto w-full">
+            <div class="text-center mb-6">
+                <span class="text-xs font-mono uppercase tracking-widest text-orange-400">A Ponte Empírica</span>
+                <h2 class="text-4xl md:text-5xl font-bold aws-orange mt-1">A Nuvem como Laboratório de Física Teórica</h2>
+                <p class="text-gray-300 text-sm mt-1">Assim como a física valida Newton no laboratório, a computação valida Tanenbaum na AWS</p>
+            </div>
+            
+            <div class="overflow-hidden rounded-2xl shadow-2xl border border-gray-700 mt-4">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-900 text-base">
+                            <th class="p-5 border-b border-gray-700 w-1/2 text-gray-300"><i class="fas fa-book mr-3 text-blue-400"></i>Conceito Teórico (Tanenbaum - 2ª Ed.)</th>
+                            <th class="p-5 border-b border-gray-700 w-1/2 bg-gray-850 text-aws-orange"><i class="fab fa-aws mr-3"></i>Implementação Prática na Nuvem (AWS)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+                        <tr class="bg-gray-800 hover:bg-gray-750 transition-colors">
+                            <td class="p-4 border-b border-gray-700 font-semibold text-blue-300">
+                                <i class="fas fa-shield-alt mr-2 text-blue-400"></i>Transparência de Falha (Failure Transparency)
+                                <span class="block text-xs font-normal text-gray-400 mt-0.5">Ocultar falhas físicas e a recuperação de recursos do cliente</span>
+                            </td>
+                            <td class="p-4 border-b border-gray-700 font-bold bg-gray-900/60 text-white">
+                                Application Load Balancer (ALB) + Target Groups + Health Checks a cada 10s
+                            </td>
+                        </tr>
+                        <tr class="bg-gray-800 hover:bg-gray-750 transition-colors">
+                            <td class="p-4 border-b border-gray-700 font-semibold text-green-300">
+                                <i class="fas fa-globe mr-2 text-green-400"></i>Transparência de Localização (Location Transparency)
+                                <span class="block text-xs font-normal text-gray-400 mt-0.5">O cliente não faz ideia de qual hemisfério está processando o tráfego</span>
+                            </td>
+                            <td class="p-4 border-b border-gray-700 font-bold bg-gray-900/60 text-white">
+                                AWS Route 53 com política de Roteamento por Latência (us-east-1 vs. eu-central-1)
+                            </td>
+                        </tr>
+                        <tr class="bg-gray-800 hover:bg-gray-750 transition-colors">
+                            <td class="p-4 border-b border-gray-700 font-semibold text-purple-300">
+                                <i class="fas fa-layer-group mr-2 text-purple-400"></i>Arquitetura Stateless & Escalabilidade Elástica
+                                <span class="block text-xs font-normal text-gray-400 mt-0.5">Nós de computação efêmeros; persistência desacoplada</span>
+                            </td>
+                            <td class="p-4 border-b border-gray-700 font-bold bg-gray-900/60 text-white">
+                                Auto Scaling Group com EC2 descartáveis; dados no Amazon RDS MySQL e S3
+                            </td>
+                        </tr>
+                        <tr class="bg-gray-800 hover:bg-gray-750 transition-colors">
+                            <td class="p-4 font-semibold text-yellow-300">
+                                <i class="fas fa-copy mr-2 text-yellow-400"></i>Replicação & Consenso sem Ponto Único de Falha
+                                <span class="block text-xs font-normal text-gray-400 mt-0.5">Ausência de Single Point of Failure (SPOF) em zonas geográficas</span>
+                            </td>
+                            <td class="p-4 font-bold bg-gray-900/60 text-white">
+                                Implantação Multi-AZ (us-east-1a, 1b) com replicação de banco e Failover automático
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 6: System Design -->
+    <div class="slide-container" id="slide-6">
+        <div class="max-w-6xl mx-auto w-full">
+            <div class="text-center mb-4">
+                <span class="text-xs font-mono uppercase tracking-widest text-orange-400">Arquitetura de Referência</span>
+                <h2 class="text-3xl md:text-4xl font-bold aws-orange">Topologia da Arquitetura (System Design)</h2>
+                <p class="text-gray-300 text-xs mt-0.5">Fluxo de Alta Disponibilidade, Borda Global, Multi-AZ e Persistência Desacoplada</p>
+            </div>
+            
+            <!-- Canvas de Arquitetura AWS Nativo -->
+            <div class="bg-gray-900/90 rounded-2xl p-5 border border-gray-700 shadow-2xl backdrop-blur-md">
+                
+                <!-- Nível 1: Clientes e Borda -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center mb-4">
+                    <!-- Usuários / Carga -->
+                    <div class="bg-gray-800/90 p-3.5 rounded-xl border border-gray-600 text-center shadow-md">
+                        <div class="w-10 h-10 mx-auto rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg mb-1.5">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h4 class="font-bold text-white text-sm">Clientes / Postman Runner</h4>
+                        <span class="inline-block mt-0.5 px-2 py-0.5 bg-blue-900/60 text-blue-300 text-[10px] rounded-full font-mono">100 Virtual Users</span>
+                    </div>
+
+                    <!-- Conexão / Seta -->
+                    <div class="hidden md:flex flex-col items-center text-center">
+                        <span class="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1">HTTPS Request</span>
+                        <div class="w-full flex items-center justify-center gap-2 text-aws-orange">
+                            <span class="h-0.5 w-16 bg-gradient-to-r from-blue-500 to-aws-orange"></span>
+                            <i class="fas fa-chevron-right text-base"></i>
+                        </div>
+                    </div>
+
+                    <!-- Edge: Route 53 + WAF -->
+                    <div class="bg-gray-800/90 p-3.5 rounded-xl border border-purple-500/50 shadow-md">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1">
+                                <i class="fas fa-globe"></i> Borda & DNS
+                            </span>
+                            <span class="text-[10px] bg-purple-900/60 text-purple-300 px-2 py-0.5 rounded">Latency Routing</span>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="flex items-center gap-2.5 bg-gray-900/80 p-1.5 rounded-lg border border-gray-700">
+                                <i class="fas fa-route text-purple-400 text-base w-5 text-center"></i>
+                                <div class="text-left text-xs">
+                                    <strong class="text-white block text-xs">AWS Route 53</strong>
+                                    <span class="text-gray-400 font-mono text-[10px]">unifan.rafaellevi.com.br</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2.5 bg-gray-900/80 p-1.5 rounded-lg border border-gray-700">
+                                <i class="fas fa-shield-alt text-pink-400 text-base w-5 text-center"></i>
+                                <div class="text-left text-xs">
+                                    <strong class="text-white block text-xs">AWS WAF</strong>
+                                    <span class="text-gray-400 text-[10px]">Mitigação DDoS & SQLi</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Setas para VPC -->
+                <div class="flex justify-center items-center my-2 text-gray-400 text-xs">
+                    <span class="flex items-center gap-2 bg-gray-800 px-3 py-0.5 rounded-full border border-gray-700 font-mono text-[11px]">
+                        <i class="fas fa-arrow-down text-aws-orange"></i> Roteamento para a VPC regional mais próxima (us-east-1)
+                    </span>
+                </div>
+
+                <!-- Nível 2: VPC us-east-1 -->
+                <div class="border border-dashed border-gray-700 rounded-xl p-4 bg-gray-850/50 relative mt-1">
+                    <div class="absolute -top-2.5 left-4 bg-gray-800 px-2.5 py-0.5 rounded text-[11px] font-mono text-gray-300 border border-gray-600 flex items-center gap-1.5">
+                        <i class="fas fa-cloud text-aws-orange"></i> AWS VPC: us-east-1 (10.0.0.0/16)
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-center">
+                        <!-- ALB -->
+                        <div class="lg:col-span-4 bg-gray-800 p-3.5 rounded-xl border border-blue-500/40 shadow-lg text-center">
+                            <div class="w-9 h-9 mx-auto rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-base mb-1.5">
+                                <i class="fas fa-network-wired"></i>
+                            </div>
+                            <h5 class="font-bold text-white text-xs">Application Load Balancer</h5>
+                            <p class="text-[11px] text-gray-400">Target Group: Porta 80</p>
+                            <div class="mt-2 p-1.5 bg-gray-900 rounded-lg text-left text-[10px] font-mono text-green-400 border border-gray-700">
+                                <i class="fas fa-heartbeat text-red-400 mr-1"></i> Health Check: /api/health (10s)
+                            </div>
+                        </div>
+
+                        <!-- Auto Scaling Group -->
+                        <div class="lg:col-span-5 bg-gray-800/80 p-3.5 rounded-xl border border-aws-orange/40 shadow-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[11px] font-bold text-aws-orange uppercase tracking-wider flex items-center gap-1">
+                                    <i class="fas fa-cogs"></i> Auto Scaling Group (Multi-AZ)
+                                </span>
+                                <span class="text-[9px] bg-green-900/60 text-green-300 px-1.5 py-0.5 rounded font-mono">Min: 2 | Max: 5</span>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <!-- AZ-A -->
+                                <div class="bg-gray-900 p-2.5 rounded-lg border border-gray-700 text-left hover:border-red-500 transition-colors group">
+                                    <div class="flex items-center justify-between text-xs mb-0.5">
+                                        <span class="font-bold text-gray-200 text-xs">Zona A</span>
+                                        <span class="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
+                                    </div>
+                                    <span class="text-[10px] text-gray-400 block font-mono">us-east-1a</span>
+                                    <div class="mt-1 flex items-center gap-1.5 text-xs text-gray-300">
+                                        <i class="fas fa-server text-aws-orange"></i> EC2 (API Docker)
+                                    </div>
+                                    <div class="mt-1 text-[9px] text-red-400">
+                                        <i class="fas fa-skull-crossbones mr-1"></i> Alvo do Caos
+                                    </div>
+                                </div>
+
+                                <!-- AZ-B -->
+                                <div class="bg-gray-900 p-2.5 rounded-lg border border-gray-700 text-left">
+                                    <div class="flex items-center justify-between text-xs mb-0.5">
+                                        <span class="font-bold text-gray-200 text-xs">Zona B</span>
+                                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                    </div>
+                                    <span class="text-[10px] text-gray-400 block font-mono">us-east-1b</span>
+                                    <div class="mt-1 flex items-center gap-1.5 text-xs text-gray-300">
+                                        <i class="fas fa-server text-green-400"></i> EC2 (API Docker)
+                                    </div>
+                                    <div class="mt-1 text-[9px] text-green-400">
+                                        <i class="fas fa-shield-alt mr-1"></i> Redundância Ativa
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dados e Armazenamento -->
+                        <div class="lg:col-span-3 space-y-2">
+                            <div class="bg-gray-800 p-2.5 rounded-xl border border-indigo-500/40 shadow text-left">
+                                <div class="flex items-center gap-2.5">
+                                    <i class="fas fa-database text-indigo-400 text-lg"></i>
+                                    <div>
+                                        <h6 class="font-bold text-white text-xs">Amazon RDS MySQL</h6>
+                                        <span class="text-[9px] text-gray-400 font-mono">Multi-AZ Stateful</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-800 p-2.5 rounded-xl border border-green-500/40 shadow text-left">
+                                <div class="flex items-center gap-2.5">
+                                    <i class="fas fa-archive text-green-400 text-lg"></i>
+                                    <div>
+                                        <h6 class="font-bold text-white text-xs">Amazon S3</h6>
+                                        <span class="text-[9px] text-gray-400 font-mono">Uploads de Imagens</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer do Diagrama -->
+                <div class="mt-3 flex flex-wrap items-center justify-around gap-2 text-[11px] text-gray-400 pt-2 border-t border-gray-800">
+                    <span class="flex items-center gap-1"><i class="fas fa-check-circle text-green-400"></i> <strong>Tanenbaum:</strong> Transparência de Falha (Health Checks)</span>
+                    <span class="flex items-center gap-1"><i class="fas fa-check-circle text-green-400"></i> <strong>Tanenbaum:</strong> Transparência de Localização (Route 53)</span>
+                    <span class="flex items-center gap-1"><i class="fas fa-check-circle text-green-400"></i> <strong>Tanenbaum:</strong> Replicação Sem SPOF</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 7: Diagrama Mermaid Interativo -->
+    <div class="slide-container" id="slide-7">
+        <div class="max-w-6xl mx-auto w-full flex flex-col items-center">
+            <div class="text-center mb-3">
+                <span class="text-xs font-mono uppercase tracking-widest text-orange-400">Mapeamento em Grafo</span>
+                <h2 class="text-3xl md:text-4xl font-bold aws-orange">Diagrama de Fluxo & Conexões (Mermaid Live)</h2>
+                <p class="text-gray-300 text-xs mt-0.5">Visualização interativa das conexões entre clientes, borda, compute e dados</p>
+            </div>
+            <div class="w-full bg-white rounded-2xl p-2 shadow-2xl border border-gray-700 overflow-hidden">
+                <iframe src="https://mermaid.live/embed?theme=default&look=classic&mode=light#pako:eNq9V9tu2zYYfhVCRRcHi6zFTtZOawJIPqQBktSznBboPBS0RNtEKNEjqRx6ALb7FduKXWy7CbpddBjQ-wEDduM36Qusj7CfoizHSZzWSDElF6L48z98_P6Dn1ghj4jlWn3Gj8IhFgp16t0EwXPzJmpIRRl9jMevxr9z1MOSoBEWGMl0xIXCAnGJxq9DnhCJgvtbqNRMkwgEBU5CbkRhUwksFVk2WkOGpayTPkqIOuLiAPUpY-6NZvasSCX4AXFv3K6tTZf2EY3U0K2MjldCzrhwb1SqlWa1sdIH3fYRoYOhcnucRZ-fMyFJmAqqTi630bi1un7Lv66NkMejVJHLTdRXq5XVynVNRL3LtVf9tdu12rVBUlzgwZwAqs3bn1bWrmsilURM9H-m_wr9uYLF9RcU9cB9YB9BLRACOkYENTTjImxE9sF2qfT29Mc_3nzz_O3pi7_v9MTmvkzHLwUF8ftUqBRTqb92CNBUK6hhMcDLy67ras-NnsKgz0WEUeNYEZFgZKP6XgDWAzJIgfXjV7lZmfYGAo-GqBEBtl92rben3z03i49Qm6eKJgNU6sARCWky_jMJKdamd3iIi4xb7lpfGXX6aa9XQc8dGg-QFOHG0lCpkXQdh0KKlWlIRjghrEy54z0IHHk4cPZMhoEluwbgEACxThg9JOLE0S4Qe71aBsEllAG_sbT2yRJyNjUUoCLzkqD1ql63uSI4Bg1cxwtuATZ5Ak8dfOA1F3MwyPPT3o5AtX6pQTYxCtWDOKDtCudgV782qSBHmDENnQcnQwOccXCS_sZDkkRnaGNuEf730kMSwzW2CagwbGCoJehhwaDiKu-3avom3_z87b9_fT8rC0DVGE8jVAKhZVCXSptA1bNXZ65w-ubt-B_uMhuQaIqG9g7Hke1jBviB3Dz0RhlOivIE6QPIHCBCb36MOsB9otCW4OlInrvoqfsFJl6wlWHy6y8aEy8FggSawcDuTAUqNSSscQ_6SIQB4rtc0McQAGaz7J6FZ9bGw0eeNvLw3p6HPFQqsMUXVeinUas88hZDt2aquANH58C2nUg1_i1LUxDKgGxtI30VmCZQ3lYNVnk7mHUqo977BeoXgfpnAu3ND9T_vwOtvCvQ6adzyyLOOla4Q0FXVhdf_JN9gLoY5K0o2yu1iJAUfMlq40UA2vVgsdC1ET3COHByXm7EGLipVevV7knwxY6JNurNGg8WLMV5ZE5Aob4RO1_aARGHIH61N0FWgfdHDJJVOp6UROWJmbfuc4BfJFkB_HbSFzg3Kg36P_0ABUDqrqSTNy7q57l4dz9gZYdNATHYuzgB78UVVT6XRLmk_lwTUKg1I6hEdf-yQj_NjvaiuZFzXBYVtfhkt8kAyChOrr4rsKlXdR4eAIUnZ-ZkTHFbs62pydJjno0hMFcf68HbhokkpsmQo5oYvwa_-HS2QRsbqGu1ydcpldTM6Xc7nRb0aNjZ1EODkYUXZJczUcnZIYH9sr2p-6jZhxdk27DfpAzGJ6TE-GWfDIAK8HlT96vzc5BpG_lUMJmaLptpmpgNcT7-gx7t11MYLpIIRoweTZCD7hLM1BDdO3hqivcCsv4Z5IBjaTKZAaC5SzQtZlJP6ijj_vgVDH5eegwtCcPsaI5ndg1Cq2Xkp9C10Bmu5XAFuxekK2XUSmEC2Y6BojEyV5-LAx2m8v5C2v331D4veAJFNeIzwd3JqaLLyAPIFyInJKkHZw2_W24GBE0aU52Ml4nMORNUZ8K5Uq6bWCvWQNDIcpVIyYoVExFjvbSedC01JDEw1u1aEenjlKmutdK1GOcH2cfshwYNu9YzUAJp_ZDzeKIHhpDB0HL7mElYpaMIZrU6xVAPc5Fn_wF4J9oP" width="100%" height="480" style="border:0; border-radius: 12px;" loading="lazy" title="Mermaid diagram" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 8: CI/CD -->
+    <div class="slide-container" id="slide-8">
+        <div class="max-w-6xl mx-auto w-full">
+            <div class="text-center mb-6">
+                <span class="text-xs font-mono uppercase tracking-widest text-orange-400">Infraestrutura Imutável</span>
+                <h2 class="text-4xl md:text-5xl font-bold aws-orange">Provisionamento Ágil e CI/CD</h2>
+                <p class="text-gray-300 text-sm mt-1">Sem comandos manuais no servidor: o código vira container e a máquina nasce autônoma</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-xl">
+                    <h3 class="text-xl font-bold mb-3 flex items-center text-white">
+                        <i class="fab fa-github mr-2.5 text-white"></i> GitHub Actions & Amazon ECR
+                    </h3>
+                    <p class="text-xs text-gray-300 mb-3">Push na branch <code class="text-blue-300">main</code> aciona a esteira com tag SemVer e deploy seguro:</p>
+                    <div class="bg-black/90 p-3.5 rounded-xl text-green-400 font-mono text-xs overflow-x-auto border border-gray-700">
+                        <p class="text-gray-500"># Pipeline automatizado</p>
+                        <p>name: CI/CD Pipeline Festival</p>
+                        <p>on: [push]</p>
+                        <p>steps:</p>
+                        <p>  - uses: actions/checkout@v3</p>
+                        <p>  - name: Build & Tag Docker</p>
+                        <p>  - name: Push to Amazon ECR</p>
+                        <p>  - name: Deploy SSH nas EC2</p>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-xl">
+                    <h3 class="text-xl font-bold mb-3 flex items-center text-white">
+                        <i class="fas fa-server mr-2.5 aws-orange"></i> O Nascimento do Nó (User Data)
+                    </h3>
+                    <p class="text-xs text-gray-300 mb-3">A EC2 nasce sem nada instalado e se autoconfigura no primeiro boot:</p>
+                    <div class="bg-black/90 p-3.5 rounded-xl text-blue-400 font-mono text-xs overflow-x-auto border border-gray-700">
+                        <p class="text-gray-500">#!/bin/bash - Bootstrap</p>
+                        <p>apt-get update -y && apt-get install docker.io -y</p>
+                        <p class="text-yellow-400"># IAM Role elimina senhas hardcoded</p>
+                        <p>aws ecr get-login-password | docker login...</p>
+                        <p>docker run -d -p 80:3000 \</p>
+                        <p>  -e DB_HOST=$DB_HOST api-festival:latest</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 9: Testes de Carga com Postman Runner -->
+    <div class="slide-container" id="slide-9">
+        <div class="max-w-6xl mx-auto w-full">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-400 text-xs font-mono mb-2">
+                    <i class="fas fa-vial"></i> Validação Contínua & Performance
+                </div>
+                <h2 class="text-4xl md:text-5xl font-bold aws-orange">Testes de Carga com Postman Runner</h2>
+                <p class="text-gray-300 text-sm mt-1">
+                    Simulação massiva de concorrência com 100 Virtual Users na collection oficial do projeto
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                <!-- Origem da Collection -->
+                <div class="lg:col-span-5 bg-gray-800/90 rounded-2xl p-5 border border-gray-700 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between border-b border-gray-700 pb-2.5 mb-3">
+                            <span class="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fas fa-file-code"></i> Collection Oficial
+                            </span>
+                            <span class="text-[10px] bg-gray-900 text-gray-300 px-2 py-0.5 rounded font-mono">postman-collection.json</span>
+                        </div>
+                        
+                        <div class="bg-gray-900 rounded-xl p-3 border border-gray-700 text-xs font-mono text-gray-200 space-y-1 mb-3">
+                            <div class="flex items-center gap-1.5 text-green-400 text-[11px]">
+                                <i class="fab fa-github"></i>
+                                <span class="truncate">rafaellevissa/unifan-sistemas-distribuidos...</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2 text-xs text-gray-300">
+                            <div class="bg-gray-900/60 p-2.5 rounded-lg border border-gray-700/60">
+                                <strong>Rotas Testadas:</strong> <code class="text-blue-300">/api/health</code> e <code class="text-green-300">/api/ingressos</code>
+                            </div>
+                            <div class="bg-gray-900/60 p-2.5 rounded-lg border border-gray-700/60">
+                                <strong>Target Global:</strong> <code class="text-orange-300">{{base_url}}</code> (Route 53)
+                            </div>
+                            <div class="bg-gray-900/60 p-2.5 rounded-lg border border-gray-700/60">
+                                <strong>Validação:</strong> Identificador <code class="text-purple-300">servidor_id</code> comprovando alternância das AZs
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-2.5 border-t border-gray-700/60 text-xs text-gray-400 font-mono flex justify-between">
+                        <span><i class="fas fa-check-circle text-green-400 mr-1"></i> Roteamento Ativo</span>
+                        <span class="text-aws-orange">Round Robin</span>
+                    </div>
+                </div>
+
+                <!-- Métricas do Runner -->
+                <div class="lg:col-span-7 bg-gray-800/90 rounded-2xl p-5 border border-orange-500/40 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between border-b border-gray-700 pb-2.5 mb-3">
+                            <span class="text-xs font-bold text-aws-orange uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fas fa-tachometer-alt"></i> Configuração do Teste
+                            </span>
+                            <span class="text-[10px] bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded font-mono">Performance Run</span>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2.5 mb-4">
+                            <div class="bg-gray-900 p-2.5 rounded-xl border border-gray-700 text-center">
+                                <span class="text-[10px] text-gray-400 block font-mono">Virtual Users</span>
+                                <span class="text-2xl font-bold text-white">100</span>
+                                <span class="text-[9px] text-orange-400 block">Simultâneos</span>
+                            </div>
+                            <div class="bg-gray-900 p-2.5 rounded-xl border border-gray-700 text-center">
+                                <span class="text-[10px] text-gray-400 block font-mono">Duração</span>
+                                <span class="text-2xl font-bold text-white">3 min</span>
+                                <span class="text-[9px] text-blue-400 block">Tráfego Contínuo</span>
+                            </div>
+                            <div class="bg-gray-900 p-2.5 rounded-xl border border-gray-700 text-center">
+                                <span class="text-[10px] text-gray-400 block font-mono">Erro Tolerado</span>
+                                <span class="text-2xl font-bold text-green-400">0%</span>
+                                <span class="text-[9px] text-green-400 block">Sem 5xx</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2 text-xs">
+                            <div class="p-2.5 bg-gray-900/80 rounded-lg border border-gray-700 flex items-center gap-2.5">
+                                <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs flex-shrink-0">1</span>
+                                <p class="text-gray-300">Tráfego estável distribuído entre <strong>Zona A</strong> e <strong>Zona B</strong> com latência estável.</p>
+                            </div>
+                            <div class="p-2.5 bg-gray-900/80 rounded-lg border border-red-500/30 flex items-center gap-2.5">
+                                <span class="w-6 h-6 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center font-bold text-xs flex-shrink-0">2</span>
+                                <p class="text-gray-300">O professor executa <code class="text-red-300">Terminate Instance</code> na Zona A ao vivo durante o teste.</p>
+                            </div>
+                            <div class="p-2.5 bg-gray-900/80 rounded-lg border border-green-500/30 flex items-center gap-2.5">
+                                <span class="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center font-bold text-xs flex-shrink-0">3</span>
+                                <p class="text-gray-300">O ALB isola a máquina morta em 10s e redistribui 100% da carga para a Zona B sem perdas.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-2 border-t border-gray-700/60 text-xs text-gray-400 flex justify-between items-center">
+                        <span class="flex items-center gap-1.5"><i class="fas fa-play text-green-400"></i> Pronto para a Live Demo</span>
+                        <span class="text-gray-500 font-mono text-[11px]">Tanenbaum §8 Confiabilidade</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 10: LIVE DEMO & A Pedagogia do Caos -->
+    <div class="slide-container" id="slide-10">
+        <div class="max-w-6xl mx-auto w-full text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-mono uppercase tracking-widest mb-4 animate-pulse">
+                <i class="fas fa-biohazard"></i> O Professor como Agente do Caos
+            </div>
+            <h2 class="text-5xl md:text-6xl font-extrabold mb-4 text-red-500">[LIVE DEMO] A Hora da Verdade</h2>
+            <h3 class="text-2xl text-gray-300 mb-8 font-light">
+                Injetando Caos com 100 Usuários Virtuais Simultâneos em Tempo Real
+            </h3>
+            
+            <div class="flex justify-center items-center gap-8 md:gap-14 my-10 bg-gray-800/80 p-8 rounded-2xl border border-gray-700 max-w-4xl mx-auto shadow-2xl">
+                <div class="text-center">
+                    <i class="fas fa-users text-5xl text-blue-400 mb-2"></i>
+                    <span class="block text-xs font-mono text-gray-400">100 VUs</span>
+                </div>
+                <i class="fas fa-arrow-right text-2xl text-gray-500"></i>
+                <div class="text-center">
+                    <i class="fas fa-bolt text-5xl aws-orange mb-2"></i>
+                    <span class="block text-xs font-mono text-gray-400">ALB Route</span>
+                </div>
+                <i class="fas fa-arrow-right text-2xl text-gray-500"></i>
+                <div class="text-center">
+                    <i class="fas fa-skull text-5xl text-red-500 mb-2 animate-bounce"></i>
+                    <span class="block text-xs font-mono text-red-400 font-bold">Terminate 1a</span>
+                </div>
+                <i class="fas fa-arrow-right text-2xl text-gray-500"></i>
+                <div class="text-center">
+                    <i class="fas fa-shield-alt text-5xl text-green-400 mb-2"></i>
+                    <span class="block text-xs font-mono text-green-400 font-bold">Autocura 1b</span>
+                </div>
+            </div>
+
+            <p class="text-lg text-gray-300 max-w-2xl mx-auto italic">
+                "Erramos no laboratório empírico para não entrarmos em pânico na produção."
+            </p>
+        </div>
+    </div>
+
+    <!-- Slide 11: Matriz Pedagógica CHA -->
+    <div class="slide-container" id="slide-11">
+        <div class="max-w-6xl mx-auto w-full">
+            <div class="text-center mb-6">
+                <span class="text-xs font-mono uppercase tracking-widest text-orange-400">Diretrizes Curriculares Nacionais (DCNs)</span>
+                <h2 class="text-4xl md:text-5xl font-bold aws-orange mt-1">A Matriz Pedagógica CHA no Ensino de SRE</h2>
+                <p class="text-gray-300 text-sm mt-1">O rigor acadêmico consolidado em competências mensuráveis</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+                <!-- Saber -->
+                <div class="bg-gray-800/90 rounded-2xl p-6 border border-blue-500/40 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-2xl mb-3">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <span class="text-xs font-mono text-blue-400 uppercase tracking-widest font-bold block">Conhecimento</span>
+                        <h3 class="text-2xl font-bold text-white mt-1 mb-2">SABER</h3>
+                        <p class="text-xs text-gray-300 mb-3 leading-relaxed">
+                            Mapeamento aprofundado dos teoremas clássicos de Sistemas Distribuídos:
+                        </p>
+                        <ul class="text-xs text-gray-400 space-y-2 pl-2">
+                            <li><i class="fas fa-check text-blue-400 mr-1.5"></i> Transparências de Tanenbaum</li>
+                            <li><i class="fas fa-check text-blue-400 mr-1.5"></i> Modelos de coerência e concorrência</li>
+                            <li><i class="fas fa-check text-blue-400 mr-1.5"></i> Teorema CAP e tolerância a partição</li>
+                        </ul>
+                    </div>
+                    <div class="mt-4 p-2.5 bg-gray-900 rounded-lg text-xs text-blue-300 font-mono border border-gray-700">
+                        Por que cada decisão foi tomada?
+                    </div>
+                </div>
+
+                <!-- Saber Fazer -->
+                <div class="bg-gray-800/90 rounded-2xl p-6 border border-aws-orange/40 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-orange-500/20 text-aws-orange flex items-center justify-center text-2xl mb-3">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <span class="text-xs font-mono text-aws-orange uppercase tracking-widest font-bold block">Habilidade</span>
+                        <h3 class="text-2xl font-bold text-white mt-1 mb-2">SABER FAZER</h3>
+                        <p class="text-xs text-gray-300 mb-3 leading-relaxed">
+                            Capacidade técnica prática de automação e orquestração de nuvem:
+                        </p>
+                        <ul class="text-xs text-gray-400 space-y-2 pl-2">
+                            <li><i class="fas fa-check text-aws-orange mr-1.5"></i> Pipelines CI/CD com GitHub Actions</li>
+                            <li><i class="fas fa-check text-aws-orange mr-1.5"></i> Contêineres Docker e imagens no ECR</li>
+                            <li><i class="fas fa-check text-aws-orange mr-1.5"></i> Scripts de User Data e IaC (Terraform)</li>
+                        </ul>
+                    </div>
+                    <div class="mt-4 p-2.5 bg-gray-900 rounded-lg text-xs text-orange-300 font-mono border border-gray-700">
+                        Como implementar de forma automatizada?
+                    </div>
+                </div>
+
+                <!-- Saber Ser -->
+                <div class="bg-gray-800/90 rounded-2xl p-6 border border-green-500/40 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center text-2xl mb-3">
+                            <i class="fas fa-heartbeat"></i>
+                        </div>
+                        <span class="text-xs font-mono text-green-400 uppercase tracking-widest font-bold block">Atitude</span>
+                        <h3 class="text-2xl font-bold text-white mt-1 mb-2">SABER SER</h3>
+                        <p class="text-xs text-gray-300 mb-3 leading-relaxed">
+                            Postura analítica investigativa de Engenharia de Confiabilidade (SRE):
+                        </p>
+                        <ul class="text-xs text-gray-400 space-y-2 pl-2">
+                            <li><i class="fas fa-check text-green-400 mr-1.5"></i> Serenidade emocional diante de incidentes</li>
+                            <li><i class="fas fa-check text-green-400 mr-1.5"></i> Leitura metódica de métricas e logs</li>
+                            <li><i class="fas fa-check text-green-400 mr-1.5"></i> Cultura blameless (sem culpar pessoas)</li>
+                        </ul>
+                    </div>
+                    <div class="mt-4 p-2.5 bg-gray-900 rounded-lg text-xs text-green-300 font-mono border border-gray-700">
+                        Como agir com sobriedade sob pressão?
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 12: Conclusão -->
+    <div class="slide-container" id="slide-12">
+        <div class="max-w-6xl mx-auto w-full">
+            <div class="text-center mb-6">
+                <span class="text-xs font-mono uppercase tracking-widest text-orange-400">Fechamento da Tese</span>
+                <h2 class="text-4xl md:text-5xl font-bold aws-orange mt-1">Formando Engenheiros, Não Operadores</h2>
+                <p class="text-gray-300 text-sm mt-1">A universidade como o elo transformador entre a ciência e o mercado de nuvem</p>
+            </div>
+            
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700 text-lg">
+                <div class="p-4 bg-gradient-to-r from-orange-500/20 via-gray-900 to-blue-500/20 rounded-xl border border-gray-600 mb-6 text-center">
+                    <p class="text-xl md:text-2xl font-bold text-white italic">
+                        "Consoles e ferramentas mudam a cada década. Os fundamentos de Sistemas Distribuídos duram para sempre."
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+                    <div class="bg-gray-900 p-4 rounded-xl border border-gray-700">
+                        <div class="flex items-center gap-2.5 text-green-400 font-bold mb-2">
+                            <i class="fas fa-check-circle text-lg"></i> Além do ClickOps
+                        </div>
+                        <p class="text-gray-300 text-xs leading-relaxed">
+                            Superar o mero tutorial de botões: o discente entende o fluxo de rede, contenção de locks e resiliência de hardware.
+                        </p>
+                    </div>
+
+                    <div class="bg-gray-900 p-4 rounded-xl border border-gray-700">
+                        <div class="flex items-center gap-2.5 text-aws-orange font-bold mb-2">
+                            <i class="fas fa-sync-alt text-lg"></i> Design for Failure
+                        </div>
+                        <p class="text-gray-300 text-xs leading-relaxed">
+                            Projetar sistemas que esperam o erro físico. Instâncias efêmeras (stateless) onde a queda é um evento corriqueiro e absorvido.
+                        </p>
+                    </div>
+
+                    <div class="bg-gray-900 p-4 rounded-xl border border-gray-700">
+                        <div class="flex items-center gap-2.5 text-blue-400 font-bold mb-2">
+                            <i class="fas fa-map-marker-alt text-lg"></i> Impacto Regional
+                        </div>
+                        <p class="text-gray-300 text-xs leading-relaxed">
+                            Capacitar talentos no interior da Bahia (Feira de Santana) para operarem nos maiores clusters e desafios de escala do mundo.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 13: Q&A -->
+    <div class="slide-container" id="slide-13">
+        <div class="max-w-6xl mx-auto w-full text-center">
+            <h2 class="text-5xl md:text-6xl font-bold mb-4 aws-orange">Perguntas & Discussão?</h2>
+            <p class="text-xl text-gray-300 mb-8 font-light">Vamos trocar experiências sobre educação, resiliência e sistemas distribuídos!</p>
+            
+            <div class="flex flex-col md:flex-row justify-center items-center gap-12 mb-10">
+                <!-- Redes Sociais -->
+                <div class="flex flex-col gap-5 text-left bg-gray-850 p-6 rounded-2xl border border-gray-700 shadow-xl">
+                    <div class="flex items-center gap-4">
+                        <div class="w-11 h-11 rounded-lg bg-gray-900 flex items-center justify-center text-white text-2xl border border-gray-700">
+                            <i class="fab fa-github"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-400 block font-mono">GitHub</span>
+                            <strong class="text-lg text-white font-mono">/rafaellevissa</strong>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="w-11 h-11 rounded-lg bg-blue-900/40 flex items-center justify-center text-blue-400 text-2xl border border-blue-500/30">
+                            <i class="fab fa-linkedin-in"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-400 block font-mono">LinkedIn</span>
+                            <strong class="text-lg text-white font-mono">/in/rafaellevissa</strong>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="w-11 h-11 rounded-lg bg-pink-900/40 flex items-center justify-center text-pink-400 text-2xl border border-pink-500/30">
+                            <i class="fab fa-instagram"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-400 block font-mono">Instagram</span>
+                            <strong class="text-lg text-white font-mono">@rafaellevissa</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- QR Code Linktree -->
+                <div class="bg-white p-5 rounded-2xl shadow-2xl transform transition hover:scale-105 border border-gray-200">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://linktr.ee/rafaellevissa" alt="QR Code Linktree" class="w-44 h-44 mb-2 mx-auto">
+                    <p class="text-gray-900 font-bold text-sm font-mono">linktr.ee/rafaellevissa</p>
+                    <span class="text-xs text-gray-500">Repositórios, Slides e Artigos</span>
+                </div>
+            </div>
+            
+            <p class="text-base text-gray-400 border-t border-gray-700 pt-6 max-w-2xl mx-auto">
+                Código completo, templates e roteiro prático disponíveis em <strong>github.com/rafaellevissa</strong>.
+            </p>
+
+            <div class="mt-6 flex justify-center gap-4 no-print">
+                <button onclick="exportToPDF()" class="inline-flex items-center gap-3 px-8 py-3.5 rounded-xl bg-aws-orange hover:bg-orange-400 text-gray-950 font-bold text-base shadow-xl hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300 cursor-pointer">
+                    <i class="fas fa-file-pdf text-xl text-red-700"></i>
+                    <span>Exportar Slides em PDF</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controles Flutuantes -->
+    <div class="controls">
+        <button class="control-btn" onclick="exportToPDF()" title="Exportar Slides em PDF"><i class="fas fa-file-pdf fa-lg text-orange-400"></i></button>
+        <button class="control-btn" onclick="prevSlide()" title="Slide Anterior"><i class="fas fa-chevron-left fa-lg"></i></button>
+        <button class="control-btn" onclick="nextSlide()" title="Próximo Slide"><i class="fas fa-chevron-right fa-lg"></i></button>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 13;
+
+        function exportToPDF() {
+            window.print();
+        }
+
+        function updateProgress() {
+            const progress = ((currentSlide - 1) / (totalSlides - 1)) * 100;
+            document.getElementById('progress').style.width = `${progress}%`;
+            document.getElementById('slide-indicator').innerText = `${currentSlide} / ${totalSlides}`;
+        }
+
+        function showSlide(n) {
+            document.querySelectorAll('.slide-container').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(`slide-${n}`);
+            if (target) {
+                target.classList.add('active');
+            }
+            updateProgress();
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides) {
+                currentSlide++;
+                showSlide(currentSlide);
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 1) {
+                currentSlide--;
+                showSlide(currentSlide);
+            }
+        }
+
+        // Navegação pelo teclado
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'Space') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+        
+        updateProgress();
+    </script>
+</body>
+</html>
