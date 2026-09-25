@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # 1. Serviço do Banco de Dados (MySQL)
+  # ==========================================
+  db:
+    image: mysql:8.0
+    container_name: mysql-local
+    restart: always
+    environment:
+      # Configuração inicial do MySQL (credenciais)
+      MYSQL_DATABASE: aula_pratica_db
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: sua_senha
+      MYSQL_ROOT_PASSWORD: root_password # Senha do administrador (root)
+    ports:
+      # Expõe a porta 3306 do container para o seu computador local
+      - "3306:3306"
+    volumes:
+      # 'db_data' salva os dados do banco para não serem perdidos ao reiniciar
+      - db_data:/var/lib/mysql
+      # Mapeia o seu ficheiro SQL para ser executado automaticamente ao inicializar o banco!
+      - ./src/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+  # ==========================================
+  # 2. Serviço da API Backend (Node.js)
+  # ==========================================
+  api:
+    build: . # Usa o ficheiro Dockerfile da raiz do projeto para criar a imagem
+    container_name: api-backend-local
+    restart: always
+    ports:
+      # Mapeia a porta 3000 do container para a porta 3000 da sua máquina
+      - "3000:3000"
+    depends_on:
+      - db # Garante que o banco de dados inicie antes da API
+    environment:
+      # Configurações do servidor e banco de dados
+      - PORT=3000
+      - DB_HOST=db # Aponta para o nome do serviço do banco definido acima
+      - DB_USER=admin
+      - DB_PASSWORD=sua_senha
+      - DB_NAME=aula_pratica_db
+      - DB_PORT=3306
+      # Credenciais da AWS (o Docker Compose vai ler automaticamente do seu ficheiro .env local)
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_S3_BUCKET_NAME=${AWS_S3_BUCKET_NAME}
+
+volumes:
+  # Declaração do volume nomeado usado pelo banco de dados
+  db_data:
