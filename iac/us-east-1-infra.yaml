@@ -417,6 +417,10 @@ Outputs:
     Description: Bucket S3 para upload das imagens
     Value:
       Fn::GetAtt: AppS3Bucket.Arn
+  DBHost:
+    Description: Endpoint do RDS criado na região us-east-1
+    Value:
+      Fn::GetAtt: DBInstance.Endpoint.Address
   DBSecretName:
     Description: Nome do secret do banco criado na região us-east-1
     Value:
