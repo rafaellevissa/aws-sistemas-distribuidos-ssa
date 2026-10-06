@@ -34,7 +34,6 @@ jobs:
           ./iac/scripts/create-stack.sh eu-central-1
 
       - name: Update Route53 latency records
-        if: ${{ secrets.HOSTED_ZONE_NAME != '' }}
         env:
           HOSTED_ZONE_NAME: ${{ secrets.HOSTED_ZONE_NAME }}
         run: |
