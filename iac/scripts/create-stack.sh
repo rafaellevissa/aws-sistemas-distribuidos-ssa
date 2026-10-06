@@ -30,6 +30,3 @@ aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION"
   --query "Stacks[0].Outputs" > "/tmp/outputs-${REGION}.json"
 
 echo "Done"
-#!/bin/bash
-
-aws cloudformation deploy --template-file ./iac/infrastructure.yaml --stack-name aws-sistemas-distribuidos-ssa --capabilities CAPABILITY_NAMED_IAM
