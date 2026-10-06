@@ -291,35 +291,37 @@ Resources:
   # 7. WAF (Web Application Firewall)
   # Injetando segurança na camada de aplicação distribuída.
   # ========================================================================
-  # WebACL:
-  #   Type: AWS::WAFv2::WebACL
-  #   Properties:
-  #     Scope: REGIONAL
-  #     DefaultAction:
-  #       Allow: {}
-  #     VisibilityConfig:
-  #       SampledRequestsEnabled: true
-  #       CloudWatchMetricsEnabled: true
-  #       MetricName: AppWebACL
-  #     Rules:
-  #       - Name: AWS-AWSManagedRulesCommonRuleSet
-  #         Priority: 1
-  #         Statement:
-  #           ManagedRuleGroupStatement:
-  #             VendorName: AWS
-  #             Name: AWSManagedRulesCommonRuleSet
-  #         OverrideAction:
-  #           None: {}
-  #         VisibilityConfig:
-  #           SampledRequestsEnabled: true
-  #           CloudWatchMetricsEnabled: true
-  #           MetricName: AWSManagedRulesCommonRuleSetMetric
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: AppWebACL
+      Rules:
+        - Name: AWS-AWSManagedRulesCommonRuleSet
+          Priority: 1
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSetMetric
 
-  # WebACLAssociation:
-  #   Type: AWS::WAFv2::WebACLAssociation
-  #   Properties:
-  #     ResourceArn: !Ref AppLoadBalancer
-  #     WebACLArn: !GetAtt WebACL.Arn
+  WebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn:
+        Ref: AppLoadBalancer
+      WebACLArn:
+        Fn::GetAtt: WebACL.Arn
 
   # ========================================================================
   # 8. AUTO SCALING GROUP & LAUNCH TEMPLATE (Imutabilidade)
@@ -411,10 +413,10 @@ Outputs:
     Description: O DNS público do seu ALB
     Value:
       Fn::GetAtt: AppLoadBalancer.DNSName
-  # S3BucketName:
-  #   Description: Bucket S3 para upload das imagens
-  #   Value:
-  #     Fn::GetAtt: AppS3Bucket.BucketName
+  S3BucketArn:
+    Description: Bucket S3 para upload das imagens
+    Value:
+      Fn::GetAtt: AppS3Bucket.Arn
   Route53Domain:
     Description: Dominio final acessível pelo usuario
     Value:
