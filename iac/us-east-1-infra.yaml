@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: 2010-09-09
 Description: >
   Infraestrutura completa para a palestra "Engenharia do Caos e Escalabilidade" (Prof. Msc. Rafael Levi).
   Inclui VPC, ALB, ASG, RDS, ECR, S3, Secrets Manager, WAF e Route53. 
@@ -9,17 +9,24 @@ Parameters:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id'
     Description: Busca automatica da ultima AMI do Ubuntu 22.04 na regiao atual
+
   EnvironmentName:
     Type: String
-    Default: caos-demo-unifan
+    Default: "caos-demo-unifan"
   DomainName:
     Type: String
-    Default: rafaellevi.com.br
+    Description: "Seu domínio principal hospedado no Route53 (ex: rafaellevi.com.br)"
+    Default: "rafaellevi.com.br"
   SubDomainName:
     Type: String
-    Default: unifan-sistemas-distribuidos2
+    Description: "Subdomínio da aplicação"
+    Default: "unifan-sistemas-distribuidos2"
 
 Resources:
+  # ========================================================================
+  # 1. NETWORKING (VPC, Subnets, Internet Gateway)
+  # A base física da rede distribuída.
+  # ========================================================================
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -28,66 +35,87 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Sub ${EnvironmentName}-vpc
+          Value:
+            Fn::Sub: ${EnvironmentName}-vpc
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
-
+  
   VPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      VpcId: !Ref VPC
-      InternetGatewayId: !Ref InternetGateway
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
 
+  # Subnets Públicas para o ALB e ASG
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref VPC
+      VpcId:
+        Ref: VPC
       CidrBlock: 10.0.1.0/24
       MapPublicIpOnLaunch: true
       AvailabilityZone:
-        Fn::Select: [ 0, !GetAZs '' ]
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref VPC
+      VpcId:
+        Ref: VPC
       CidrBlock: 10.0.2.0/24
       MapPublicIpOnLaunch: true
       AvailabilityZone:
-        Fn::Select: [ 1, !GetAZs '' ]
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
 
   RouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref VPC
+      VpcId:
+        Ref: VPC
 
   Route:
     Type: AWS::EC2::Route
     DependsOn: VPCGatewayAttachment
     Properties:
-      RouteTableId: !Ref RouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
+      RouteTableId:
+        Ref: RouteTable
+      DestinationCidrBlock: 0.0.0.0/1
+      GatewayId:
+        Ref: InternetGateway
 
   Subnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnet1
-      RouteTableId: !Ref RouteTable
+      SubnetId:
+        Ref: PublicSubnet1
+      RouteTableId:
+        Ref: RouteTable
 
   Subnet2RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnet2
-      RouteTableId: !Ref RouteTable
+      SubnetId:
+        Ref: PublicSubnet2
+      RouteTableId:
+        Ref: RouteTable
 
-  # SECURITY GROUPS
+  # ========================================================================
+  # 2. SECURITY GROUPS 
+  # Regras de comunicação entre os processos distribuídos.
+  # ========================================================================
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Permite trafego HTTP mundial para o Load Balancer
-      VpcId: !Ref VPC
+      VpcId:
+        Ref: VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -98,47 +126,55 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Permite trafego do ALB para as instancias EC2 na porta 80
-      VpcId: !Ref VPC
+      VpcId:
+        Ref: VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          SourceSecurityGroupId: !Ref ALBSecurityGroup
+          SourceSecurityGroupId:
+            Ref: ALBSecurityGroup
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: 0.0.0.0/0 # Apenas didatico. Em prod, restringir IP!
 
   RDSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Permite as EC2 acessarem o MySQL
-      VpcId: !Ref VPC
+      VpcId: 
+        Ref: VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 3306
           ToPort: 3306
-          SourceSecurityGroupId: !Ref EC2SecurityGroup
+          SourceSecurityGroupId:
+            Ref: EC2SecurityGroup
 
-  # SECRETS MANAGER & RDS
+  # ========================================================================
+  # 3. SECRETS MANAGER & RDS (MySQL)
+  # Tolerância a falhas nos dados e segurança de credenciais.
+  # ========================================================================
   DBSecret:
     Type: AWS::SecretsManager::Secret
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
-      Name: !Sub "${EnvironmentName}-db-credentials"
+      Name:
+        Fn::Sub: "${EnvironmentName}-db-credentials"
       Description: "Credenciais do MySQL geradas dinamicamente"
       GenerateSecretString:
         SecretStringTemplate: '{"username": "admin"}'
         GenerateStringKey: "password"
         PasswordLength: 16
-        ExcludeCharacters: '"@/\\'
+        ExcludeCharacters: '"@/\'
 
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Subnets para o banco de dados
-      SubnetIds:
+      SubnetIds: 
         - Ref: PublicSubnet1
         - Ref: PublicSubnet2
 
@@ -152,49 +188,79 @@ Resources:
       AutoMinorVersionUpgrade: true
       DBInstanceClass: db.t3.micro
       Engine: mysql
-      MasterUsername: !Sub '{{resolve:secretsmanager:${DBSecret}:SecretString:username}}'
-      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DBSecret}:SecretString:password}}'
-      DBSubnetGroupName: !Ref DBSubnetGroup
-      VPCSecurityGroups:
+      MasterUsername:
+        Fn::Sub: '{{resolve:secretsmanager:${DBSecret}:SecretString:username}}'
+      MasterUserPassword:
+        Fn::Sub: '{{resolve:secretsmanager:${DBSecret}:SecretString:password}}'
+      DBSubnetGroupName: 
+        Ref: DBSubnetGroup
+      VPCSecurityGroups: 
         - Ref: RDSSecurityGroup
-      MultiAZ: false
-      PubliclyAccessible: true
+      MultiAZ: false # Colocar true para replicar e garantir HA (Tolerancia a falhas do BD)
+      PubliclyAccessible: true # Didático para a aula[cite: 35]
 
-  # ECR & S3
+  # ========================================================================
+  # 4. ECR (Elastic Container Registry) & S3
+  # Repositório de Imagens e Armazenamento de Objetos Imutáveis.
+  # ========================================================================
   AppECRRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: "unifan-sistemas-distribuidos-cloudformation"
-
-  ECRReplication:
-    Type: AWS::ECR::ReplicationConfiguration
-    Properties:
-      ReplicationConfiguration:
-        rules:
-          - destinations:
-              - region: eu-central-1
-            repositoryFilters:
-              - filter: '*'
-                filterType: PREFIX_MATCH
+      RepositoryName: "unifan-sistemas-distribuidos-cloudformation" #[cite: 34]
 
   AppS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "aula-pratica-imagens-${AWS::AccountId}"
+      BucketName:
+        Fn::Sub: "aula-pratica-imagens-${AWS::AccountId}" #[cite: 35]
       PublicAccessBlockConfiguration:
         BlockPublicAcls: false
         BlockPublicPolicy: false
         IgnorePublicAcls: false
         RestrictPublicBuckets: false
 
-  # LOAD BALANCER & TARGET GROUP
+  # ========================================================================
+  # 5. IAM ROLES & POLICIES
+  # Dando autonomia à máquina para ler segredos e imagens sem senhas hardcoded.
+  # ========================================================================
+  EC2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [ ec2.amazonaws.com ] }
+            Action: [ sts:AssumeRole ]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly #[cite: 35]
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Policies:
+        - PolicyName: ReadSecrets
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource:
+                  Ref: DBSecret
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: 
+        - Ref: EC2InstanceRole
+
+  # ========================================================================
+  # 6. LOAD BALANCER & TARGET GROUP
+  # [Tanenbaum]: Transparência de Falha e Roteamento
+  # ========================================================================
   AppTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Port: 80
       Protocol: HTTP
-      VpcId: !Ref VPC
-      HealthCheckIntervalSeconds: 10
+      VpcId:
+        Ref: VPC
+      HealthCheckIntervalSeconds: 10 # Heath Check Rigoroso para Engenharia do Caos
       HealthCheckPath: "/"
       HealthyThresholdCount: 2
       UnhealthyThresholdCount: 2
@@ -202,10 +268,10 @@ Resources:
   AppLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Subnets:
+      Subnets: 
         - Ref: PublicSubnet1
         - Ref: PublicSubnet2
-      SecurityGroups:
+      SecurityGroups: 
         - Ref: ALBSecurityGroup
       Type: application
 
@@ -221,7 +287,10 @@ Resources:
           TargetGroupArn:
             Ref: AppTargetGroup
 
-  # WAF
+  # ========================================================================
+  # 7. WAF (Web Application Firewall)
+  # Injetando segurança na camada de aplicação distribuída.
+  # ========================================================================
   WebACL:
     Type: AWS::WAFv2::WebACL
     Properties:
@@ -254,34 +323,10 @@ Resources:
       WebACLArn:
         Fn::GetAtt: WebACL.Arn
 
-  # IAM ROLES & POLICIES
-  EC2InstanceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal: { Service: [ ec2.amazonaws.com ] }
-            Action: [ sts:AssumeRole ]
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
-        - arn:aws:iam::aws:policy/AmazonS3FullAccess
-      Policies:
-        - PolicyName: ReadSecrets
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: secretsmanager:GetSecretValue
-                Resource:
-                  Ref: DBSecret
-
-  EC2InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Roles:
-        - Ref: EC2InstanceRole
-
-  # AUTO SCALING GROUP & LAUNCH TEMPLATE
+  # ========================================================================
+  # 8. AUTO SCALING GROUP & LAUNCH TEMPLATE (Imutabilidade)
+  # Provisionamento ágil onde o servidor nasce, instala tudo e morre sem pena.
+  # ========================================================================
   AppLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -298,6 +343,7 @@ Resources:
           Fn::Base64:
             Fn::Sub: |
               #!/bin/bash
+              # 1. Update e Instalação do Docker e AWS CLI[cite: 35]
               apt-get update -y
               apt-get install docker.io awscli jq -y
               usermod -aG docker ubuntu
@@ -337,12 +383,30 @@ Resources:
           Ref: AppLaunchTemplate
         Version:
           Fn::GetAtt: AppLaunchTemplate.LatestVersionNumber
-      MinSize: '2'
+      MinSize: '2' # Conceito Tanenbaum: Redundância mínima de hardware
       MaxSize: '5'
       TargetGroupARNs: 
         - Ref: AppTargetGroup
 
-  # ROUTE53 record will be created externally (latency-based) after both regional stacks are deployed
+  # ========================================================================
+  # 9. ROUTE 53 (DNS e Transparência de Localização)
+  # ========================================================================
+  AppDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName:
+        Fn::Sub: "${DomainName}."
+      Name: 
+        Fn::Sub: "${SubDomainName}.${DomainName}."
+      Type: A
+      SetIdentifier: "us-east-1-region" # Latency Routing[cite: 33, 34]
+      Region: "us-east-1"
+      AliasTarget:
+        HostedZoneId: 
+          Fn::GetAtt: AppLoadBalancer.CanonicalHostedZoneID
+        DNSName: 
+          Fn::GetAtt: AppLoadBalancer.DNSName
+        EvaluateTargetHealth: true
 
 Outputs:
   LoadBalancerDNS:
@@ -353,6 +417,20 @@ Outputs:
     Description: Bucket S3 para upload das imagens
     Value:
       Fn::GetAtt: AppS3Bucket.Arn
+  DBSecretName:
+    Description: Nome do secret do banco criado na região us-east-1
+    Value:
+      Ref: DBSecret
+    Export:
+      Name:
+        Fn::Sub: "${EnvironmentName}-db-secret-name"
+  DBSecretArn:
+    Description: ARN do secret do banco criado na região us-east-1
+    Value:
+      Ref: DBSecret
+    Export:
+      Name:
+        Fn::Sub: "${EnvironmentName}-db-secret-arn"
   Route53Domain:
     Description: Dominio final acessível pelo usuario
     Value:

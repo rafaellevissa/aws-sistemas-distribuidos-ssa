@@ -4,36 +4,129 @@ Description: >
   Inclui VPC, ALB, ASG, RDS, ECR, S3, Secrets Manager, WAF e Route53. 
   [Referência Teórica: Tanenbaum, Andrew S. - Sistemas Distribuídos 2.ed.]
 
+Parameters:
+  LatestUbuntuAmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id"
+    Description: Busca automatica da ultima AMI do Ubuntu 22.04 na regiao atual
+
+  EnvironmentName:
+    Type: String
+    Default: "caos-demo-unifan"
+  DBSecretName:
+    Type: String
+    Description: "Nome do Secret do banco criado na stack us-east-1"
+    Default: "caos-demo-unifan-db-credentials"
+  DBSecretRegion:
+    Type: String
+    Description: "Região onde o Secret do banco foi criado"
+    Default: "us-east-1"
+  DBHost:
+    Type: String
+    Description: "Endpoint do RDS criado na stack us-east-1"
+  DomainName:
+    Type: String
+    Description: "Seu domínio principal hospedado no Route53 (ex: rafaellevi.com.br)"
+    Default: "rafaellevi.com.br"
+  SubDomainName:
+    Type: String
+    Description: "Subdomínio da aplicação"
+    Default: "unifan-sistemas-distribuidos2"
 
 Resources:
+  # ========================================================================
+  # 1. NETWORKING (VPC, Subnets, Internet Gateway)
+  # A base física da rede distribuída.
+  # ========================================================================
   VPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: 10.1.0.0/16
+      CidrBlock: 10.0.0.0/16
       EnableDnsSupport: true
       EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: ${EnvironmentName}-vpc
 
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+
+  # Subnets Públicas para o ALB e ASG
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref VPC
-      CidrBlock: 10.1.1.0/24
+      VpcId:
+        Ref: VPC
+      CidrBlock: 10.0.1.0/24
       MapPublicIpOnLaunch: true
-      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref VPC
-      CidrBlock: 10.1.2.0/24
+      VpcId:
+        Ref: VPC
+      CidrBlock: 10.0.2.0/24
       MapPublicIpOnLaunch: true
-      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
 
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+
+  Route:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: RouteTable
+      DestinationCidrBlock: 0.0.0.0/1
+      GatewayId:
+        Ref: InternetGateway
+
+  Subnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PublicSubnet1
+      RouteTableId:
+        Ref: RouteTable
+
+  Subnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PublicSubnet2
+      RouteTableId:
+        Ref: RouteTable
+
+  # ========================================================================
+  # 2. SECURITY GROUPS
+  # Regras de comunicação entre os processos distribuídos.
+  # ========================================================================
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP
-      VpcId: !Ref VPC
+      GroupDescription: Permite trafego HTTP mundial para o Load Balancer
+      VpcId:
+        Ref: VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -43,41 +136,92 @@ Resources:
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow from ALB
-      VpcId: !Ref VPC
+      GroupDescription: Permite trafego do ALB para as instancias EC2 na porta 80
+      VpcId:
+        Ref: VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          SourceSecurityGroupId: !Ref ALBSecurityGroup
+          SourceSecurityGroupId:
+            Ref: ALBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0 # Apenas didatico. Em prod, restringir IP!
 
+  # ========================================================================
+  # 5. IAM ROLES & POLICIES
+  # Dando autonomia à máquina para ler segredos e imagens sem senhas hardcoded.
+  # ========================================================================
+  EC2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [ec2.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly #[cite: 35]
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Policies:
+        - PolicyName: ReadSecrets
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource:
+                  Fn::Sub: arn:aws:secretsmanager:${DBSecretRegion}:${AWS::AccountId}:secret:${DBSecretName}*
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: EC2InstanceRole
+
+  # ========================================================================
+  # 6. LOAD BALANCER & TARGET GROUP
+  # [Tanenbaum]: Transparência de Falha e Roteamento
+  # ========================================================================
   AppTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Port: 80
       Protocol: HTTP
-      VpcId: !Ref VPC
-      HealthCheckPath: /
+      VpcId:
+        Ref: VPC
+      HealthCheckIntervalSeconds: 10 # Heath Check Rigoroso para Engenharia do Caos
+      HealthCheckPath: "/"
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
 
   AppLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Subnets:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
       SecurityGroups:
-        - !Ref ALBSecurityGroup
+        - Ref: ALBSecurityGroup
+      Type: application
 
   ALBListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
-      LoadBalancerArn: !Ref AppLoadBalancer
+      LoadBalancerArn:
+        Ref: AppLoadBalancer
       Port: 80
       Protocol: HTTP
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref AppTargetGroup
+          TargetGroupArn:
+            Ref: AppTargetGroup
 
+  # ========================================================================
+  # 7. WAF (Web Application Firewall)
+  # Injetando segurança na camada de aplicação distribuída.
+  # ========================================================================
   WebACL:
     Type: AWS::WAFv2::WebACL
     Properties:
@@ -88,70 +232,119 @@ Resources:
         SampledRequestsEnabled: true
         CloudWatchMetricsEnabled: true
         MetricName: AppWebACL
+      Rules:
+        - Name: AWS-AWSManagedRulesCommonRuleSet
+          Priority: 1
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSetMetric
 
   WebACLAssociation:
     Type: AWS::WAFv2::WebACLAssociation
     Properties:
-      ResourceArn: !Ref AppLoadBalancer
-      WebACLArn: !GetAtt WebACL.Arn
+      ResourceArn:
+        Ref: AppLoadBalancer
+      WebACLArn:
+        Fn::GetAtt: WebACL.Arn
 
-  EC2InstanceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal: { Service: [ ec2.amazonaws.com ] }
-            Action: [ sts:AssumeRole ]
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
-        - arn:aws:iam::aws:policy/AmazonS3FullAccess
-      Policies:
-        - PolicyName: ReadSecretsCrossRegion
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: secretsmanager:GetSecretValue
-                Resource: '*'
-
-  EC2InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Roles:
-        - !Ref EC2InstanceRole
-
+  # ========================================================================
+  # 8. AUTO SCALING GROUP & LAUNCH TEMPLATE (Imutabilidade)
+  # Provisionamento ágil onde o servidor nasce, instala tudo e morre sem pena.
+  # ========================================================================
   AppLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
-        InstanceType: t3.micro
-        ImageId: ami-0c94855ba95c71c99
+        InstanceType: t2.micro
+        ImageId:
+          Ref: LatestUbuntuAmiId
         IamInstanceProfile:
-          Arn: !GetAtt EC2InstanceProfile.Arn
+          Arn:
+            Fn::GetAtt: EC2InstanceProfile.Arn
         SecurityGroupIds:
-          - !Ref EC2SecurityGroup
+          - Ref: EC2SecurityGroup
         UserData:
-          Fn::Base64: |
-            #!/bin/bash
-            apt-get update -y
-            apt-get install -y docker.io awscli jq
+          Fn::Base64:
+            Fn::Sub: |
+              #!/bin/bash
+              # 1. Update e Instalação do Docker e AWS CLI[cite: 35]
+              apt-get update -y
+              apt-get install docker.io awscli jq -y
+              usermod -aG docker ubuntu
+              systemctl enable docker
+              systemctl start docker
+
+              # 2. Pegar as credenciais do DB no Secrets Manager
+              SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ${DBSecretName} --region ${DBSecretRegion} --query SecretString --output text)
+              DB_USER=$(echo $SECRET_JSON | jq -r .username)
+              DB_PASS=$(echo $SECRET_JSON | jq -r .password)
+              DB_HOST=${DBHost}
+
+              # 3. Login no ECR e Pull da imagem
+              aws ecr get-login-password --region ${DBSecretRegion} | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${DBSecretRegion}.amazonaws.com
+              IMAGE_URI="${AWS::AccountId}.dkr.ecr.${DBSecretRegion}.amazonaws.com/unifan-sistemas-distribuidos-cloudformation:latest"
+
+              docker pull $IMAGE_URI || true
+
+              # 4. Iniciar Container injetando os Segredos
+              docker run -d -p 80:3000 \
+                -e DB_HOST=$DB_HOST \
+                -e DB_USER=$DB_USER \
+                -e DB_PASS=$DB_PASS \
+                -e DB_NAME=aula_pratica_db \
+                -e AWS_REGION=${AWS::Region} \
+                -e AWS_S3_BUCKET_NAME=aula-pratica-imagens-${AWS::AccountId} \
+              --name unifan-api $IMAGE_URI
 
   AppAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
       LaunchTemplate:
-        LaunchTemplateId: !Ref AppLaunchTemplate
-        Version: !GetAtt AppLaunchTemplate.LatestVersionNumber
-      MinSize: '2'
-      MaxSize: '4'
+        LaunchTemplateId:
+          Ref: AppLaunchTemplate
+        Version:
+          Fn::GetAtt: AppLaunchTemplate.LatestVersionNumber
+      MinSize: "2" # Conceito Tanenbaum: Redundância mínima de hardware
+      MaxSize: "5"
       TargetGroupARNs:
-        - !Ref AppTargetGroup
+        - Ref: AppTargetGroup
+
+  # ========================================================================
+  # 9. ROUTE 53 (DNS e Transparência de Localização)
+  # ========================================================================
+  AppDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName:
+        Fn::Sub: "${DomainName}."
+      Name:
+        Fn::Sub: "${SubDomainName}.${DomainName}."
+      Type: A
+      SetIdentifier: "eu-central-1-region" # Latency Routing[cite: 33, 34]
+      Region: "eu-central-1"
+      AliasTarget:
+        HostedZoneId:
+          Fn::GetAtt: AppLoadBalancer.CanonicalHostedZoneID
+        DNSName:
+          Fn::GetAtt: AppLoadBalancer.DNSName
+        EvaluateTargetHealth: true
 
 Outputs:
-  ALBDNS:
-    Value: !GetAtt AppLoadBalancer.DNSName
-  ALBHostedZoneID:
-    Value: !GetAtt AppLoadBalancer.CanonicalHostedZoneID
+  LoadBalancerDNS:
+    Description: O DNS público do seu ALB
+    Value:
+      Fn::GetAtt: AppLoadBalancer.DNSName
+  Route53Domain:
+    Description: Dominio final acessível pelo usuario
+    Value:
+      Fn::Sub: "${SubDomainName}.${DomainName}"
