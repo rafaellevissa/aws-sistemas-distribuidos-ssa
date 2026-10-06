@@ -1,0 +1,59 @@
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+
+jobs:
+  destroy-infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials for us-east-1
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Delete us-east-1 stack
+        run: |
+          chmod +x iac/scripts/destroy-stack.sh
+          ./iac/scripts/destroy-stack.sh us-east-1 || true
+
+      - name: Configure AWS credentials for eu-central-1
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Delete eu-central-1 stack
+        run: |
+          chmod +x iac/scripts/destroy-stack.sh
+          ./iac/scripts/destroy-stack.sh eu-central-1 || true
+
+      - name: Delete Route53 latency records if present
+        env:
+          HOSTED_ZONE_NAME: ${{ secrets.HOSTED_ZONE_NAME }}
+        run: |
+          if [ -n "${HOSTED_ZONE_NAME}" ]; then
+            aws route53 list-resource-record-sets \
+              --hosted-zone-name "${HOSTED_ZONE_NAME}." \
+              --query "ResourceRecordSets[?Type=='A' && (SetIdentifier=='us-east-1' || SetIdentifier=='eu-central-1')]" \
+              --output json > /tmp/route53-records.json || true
+
+            if [ -s /tmp/route53-records.json ] && [ "$(jq length /tmp/route53-records.json)" -gt 0 ]; then
+              cat > /tmp/route53-delete.json <<EOF
+              {
+                "Comment": "Remove latency records for deleted stacks",
+                "Changes": $(jq -c '[.[] | {Action: "DELETE", ResourceRecordSet: .}]' /tmp/route53-records.json)
+              }
+              EOF
+
+              aws route53 change-resource-record-sets \
+                --hosted-zone-name "${HOSTED_ZONE_NAME}." \
+                --change-batch file:///tmp/route53-delete.json || true
+            fi
+          fi
