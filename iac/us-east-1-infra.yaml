@@ -180,8 +180,8 @@ Resources:
 
   DBInstance:
     Type: AWS::RDS::DBInstance
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
       BackupRetentionPeriod: 3
       AllocatedStorage: 20
@@ -223,6 +223,12 @@ Resources:
   # 5. IAM ROLES & POLICIES
   # Dando autonomia à máquina para ler segredos e imagens sem senhas hardcoded.
   # ========================================================================
+  AppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /unifan/caos-demo-api
+      RetentionInDays: 1
+  
   EC2InstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -234,6 +240,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly #[cite: 35]
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
       Policies:
         - PolicyName: ReadSecrets
           PolicyDocument:
@@ -370,6 +377,10 @@ Resources:
                 -e DB_NAME=aula_pratica_db \
                 -e AWS_REGION=${AWS::Region} \
                 -e AWS_S3_BUCKET_NAME=aula-pratica-imagens-${AWS::AccountId} \
+                --log-driver=awslogs \
+                --log-opt awslogs-region=${AWS::Region} \
+                --log-opt awslogs-group=/unifan/caos-demo-api \
+                --log-opt awslogs-stream=ec2-instance \
               --name unifan-api $IMAGE_URI
 
   AppAutoScalingGroup:
