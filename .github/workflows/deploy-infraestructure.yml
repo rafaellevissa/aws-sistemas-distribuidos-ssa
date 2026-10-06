@@ -32,10 +32,3 @@ jobs:
         run: |
           chmod +x iac/scripts/create-stack.sh
           ./iac/scripts/create-stack.sh eu-central-1
-
-      - name: Update Route53 latency records
-        env:
-          HOSTED_ZONE_NAME: ${{ secrets.HOSTED_ZONE_NAME }}
-        run: |
-          chmod +x iac/scripts/update-route53.sh
-          ./iac/scripts/update-route53.sh "$HOSTED_ZONE_NAME"
