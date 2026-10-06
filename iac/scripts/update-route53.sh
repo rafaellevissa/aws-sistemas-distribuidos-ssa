@@ -92,7 +92,21 @@ cat > /tmp/route53-change.json <<EOF
 }
 EOF
 
+HOSTED_ZONE_ID=$(aws route53 list-hosted-zones-by-name \
+  --dns-name "${HOSTED_ZONE_NAME}." \
+  --query "HostedZones[?Name=='${HOSTED_ZONE_NAME}.'] | [0].Id" \
+  --output text 2>/dev/null || true)
+
+if [ -z "$HOSTED_ZONE_ID" ]; then
+  echo "Hosted zone not found for ${HOSTED_ZONE_NAME}."
+  exit 1
+fi
+
+HOSTED_ZONE_ID="${HOSTED_ZONE_ID#'/hostedzone/'}"
+
 echo "Applying Route53 change for ${FQDN} in hosted zone ${HOSTED_ZONE_NAME}"
-aws route53 change-resource-record-sets --hosted-zone-name "${HOSTED_ZONE_NAME}." --change-batch file:///tmp/route53-change.json
+aws route53 change-resource-record-sets \
+  --hosted-zone-id "$HOSTED_ZONE_ID" \
+  --change-batch file:///tmp/route53-change.json
 
 echo "Done"
