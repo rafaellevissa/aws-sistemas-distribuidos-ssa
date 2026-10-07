@@ -3,6 +3,8 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-and-push-docker-image:
+    uses: .github/workflows/deploy-backend.yml
   deploy-infrastructure:
     runs-on: ubuntu-latest
     steps:

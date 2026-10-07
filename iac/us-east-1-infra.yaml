@@ -20,9 +20,19 @@ Parameters:
   SubDomainName:
     Type: String
     Description: "Subdomínio da aplicação"
-    Default: "unifan-sistemas-distribuidos2"
+    Default: "unifan-sistemas-distribuidos"
 
 Resources:
+  # ========================================================================
+  # 0. Registry para imagem docker
+  # a base para o pipe paralelo buildar e colocar a imagem docker antes de criar o ASG com as intâncias.
+  # ========================================================================
+  AppECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: "unifan-sistemas-distribuidos-cloudformation" 
+
+
   # ========================================================================
   # 1. NETWORKING (VPC, Subnets, Internet Gateway)
   # A base física da rede distribuída.
@@ -200,14 +210,9 @@ Resources:
       PubliclyAccessible: true # Didático para a aula[cite: 35]
 
   # ========================================================================
-  # 4. ECR (Elastic Container Registry) & S3
+  # 4. S3
   # Repositório de Imagens e Armazenamento de Objetos Imutáveis.
   # ========================================================================
-  AppECRRepository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: "unifan-sistemas-distribuidos-cloudformation" #[cite: 34]
-
   AppS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
