@@ -34,3 +34,4 @@ jobs:
           ./iac/scripts/create-stack.sh eu-central-1
   build-and-push-docker-image:
     uses: rafaellevissa/aws-sistemas-distribuidos-ssa/.github/workflows/deploy-backend.yml@main
+    secrets: inherit
