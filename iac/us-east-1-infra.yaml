@@ -30,8 +30,8 @@ Resources:
   AppECRRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: "unifan-sistemas-distribuidos-cloudformation" 
-
+      RepositoryName: "unifan-sistemas-distribuidos-cloudformation"
+      EmptyOnDelete: true
 
   # ========================================================================
   # 1. NETWORKING (VPC, Subnets, Internet Gateway)
