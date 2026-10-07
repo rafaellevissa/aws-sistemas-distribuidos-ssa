@@ -17,6 +17,7 @@ cp .env.example .env   # preencha com seus dados de RDS/S3
 npm run dev
 ```
 
+
 A API sobe em `http://localhost:3000`.
 
 ## Rotas
