@@ -4,7 +4,7 @@ on:
 
 jobs:
   build-and-push-docker-image:
-    uses: .github/workflows/deploy-backend.yml
+    uses: rafaellevissa/aws-sistemas-distribuidos-ssa/.github/workflows/deploy-backend.yml
   deploy-infrastructure:
     runs-on: ubuntu-latest
     steps:

@@ -6,7 +6,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-and-deploy:
+  build-and-image-push:
     runs-on: ubuntu-latest
 
     steps:
