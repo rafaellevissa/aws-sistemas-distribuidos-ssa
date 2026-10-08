@@ -38,4 +38,6 @@ jobs:
 
   build-and-push-docker-image:
     uses: rafaellevissa/aws-sistemas-distribuidos-ssa/.github/workflows/deploy-backend.yml@main
+    with:
+      refresh-instances: false
     secrets: inherit

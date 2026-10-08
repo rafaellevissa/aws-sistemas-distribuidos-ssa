@@ -2,6 +2,10 @@ name: Deploy Backend API
 
 on:
   workflow_call:
+    inputs:
+      refresh-instances:
+        type: boolean
+        default: true
   push:
     branches: [ "main" ]
 
@@ -37,3 +41,25 @@ jobs:
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+  refresh-instances:
+    needs: build-and-image-push
+    if: ${{ github.event_name == 'push' || inputs.refresh-instances }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        region: [us-east-1, eu-central-1]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ matrix.region }}
+
+      - name: Start rolling instance refresh
+        run: bash iac/scripts/refresh-instances.sh "${{ matrix.region }}"
