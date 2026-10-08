@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const multer = require('multer');
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const s3Client = require('../config/s3');
 const router = Router();
 
@@ -37,12 +38,15 @@ router.post('/', upload.single('imagem'), async (req, res) => {
     const command = new PutObjectCommand(params);
     await s3Client.send(command);
     
-    // A URL pública é montada combinando o nome do bucket, região e nome do ficheiro
-    const urlPublica = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+    const url = await getSignedUrl(
+      s3Client,
+      new GetObjectCommand({ Bucket: params.Bucket, Key: params.Key }),
+      { expiresIn: 3600 },
+    );
 
     res.status(200).json({
       mensagem: 'Upload realizado com sucesso!',
-      url: urlPublica,
+      url,
       key: fileName,
     });
   } catch (error) {
