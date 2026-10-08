@@ -4,11 +4,13 @@ const cors = require('cors');
 
 const usuariosRoutes = require('./routes/usuarios.routes');
 const uploadRoutes = require('./routes/upload.routes');
+const requestLogger = require('./middlewares/request-logger');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(requestLogger());
 
 // Rota de teste / health check
 app.get('/', (req, res) => {

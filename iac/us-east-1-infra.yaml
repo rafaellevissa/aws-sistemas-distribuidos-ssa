@@ -375,7 +375,12 @@ Resources:
               
               docker pull $IMAGE_URI || true
               
-              # 4. Iniciar Container injetando os Segredos
+              # 4. ID da instancia (IMDSv2) para log stream dedicado por instancia
+              IMDS_TOKEN=$(curl -s -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+              INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+              INSTANCE_ID=$(echo "$INSTANCE_ID" | grep -E '^i-[0-9a-f]+$' || hostname)
+              
+              # 5. Iniciar Container injetando os Segredos
               docker run -d -p 80:3000 \
                 -e DB_HOST=$DB_HOST \
                 -e DB_USER=$DB_USER \
@@ -383,10 +388,11 @@ Resources:
                 -e DB_NAME=aula_pratica_db \
                 -e AWS_REGION=${AWS::Region} \
                 -e AWS_S3_BUCKET_NAME=aula-pratica-imagens-${AWS::AccountId} \
+                -e INSTANCE_ID=$INSTANCE_ID \
                 --log-driver=awslogs \
                 --log-opt awslogs-region=${AWS::Region} \
                 --log-opt awslogs-group=/unifan/caos-demo-api \
-                --log-opt awslogs-stream=ec2-instance \
+                --log-opt awslogs-stream=$INSTANCE_ID \
               --name unifan-api $IMAGE_URI
 
   AppAutoScalingGroup:
@@ -456,3 +462,19 @@ Outputs:
     Description: Dominio final acessível pelo usuario
     Value:
       Fn::Sub: "${SubDomainName}.${DomainName}"
+  LoadBalancerFullName:
+    Description: Nome completo do ALB (dimensao LoadBalancer no CloudWatch)
+    Value:
+      Fn::GetAtt: AppLoadBalancer.LoadBalancerFullName
+  TargetGroupFullName:
+    Description: Nome completo do Target Group (dimensao TargetGroup no CloudWatch)
+    Value:
+      Fn::GetAtt: AppTargetGroup.TargetGroupFullName
+  AutoScalingGroupName:
+    Description: Nome do ASG que registra as instancias no Target Group
+    Value:
+      Ref: AppAutoScalingGroup
+  AppLogGroupName:
+    Description: Log group da API (um log stream por instancia)
+    Value:
+      Ref: AppLogGroup

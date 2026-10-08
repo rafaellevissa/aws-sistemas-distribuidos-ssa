@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Requests por Load Balancer, CPU por Target Group e requests por instancia.
+
+Parameters:
+  DashboardName:
+    Type: String
+    Default: "caos-demo-unifan-requests"
+  LogGroupName:
+    Type: String
+    Default: "/unifan/caos-demo-api"
+  UsEast1LoadBalancerFullName:
+    Type: String
+    Description: "Output LoadBalancerFullName da stack us-east-1 (app/<nome>/<id>)"
+  UsEast1TargetGroupFullName:
+    Type: String
+    Description: "Output TargetGroupFullName da stack us-east-1 (targetgroup/<nome>/<id>)"
+  UsEast1AutoScalingGroupName:
+    Type: String
+    Description: "Output AutoScalingGroupName da stack us-east-1"
+  EuCentral1LoadBalancerFullName:
+    Type: String
+    Description: "Output LoadBalancerFullName da stack eu-central-1 (app/<nome>/<id>)"
+  EuCentral1TargetGroupFullName:
+    Type: String
+    Description: "Output TargetGroupFullName da stack eu-central-1 (targetgroup/<nome>/<id>)"
+  EuCentral1AutoScalingGroupName:
+    Type: String
+    Description: "Output AutoScalingGroupName da stack eu-central-1"
+
+Resources:
+  # CPU e uma metrica de EC2, nao do Target Group: cada ASG registra suas instancias em um unico TG,
+  # entao a CPU agregada por AutoScalingGroupName equivale a CPU do Target Group.
+  RequestsDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName:
+        Ref: DashboardName
+      DashboardBody:
+        Fn::Sub: |
+          {
+            "widgets": [
+              {
+                "type": "metric",
+                "x": 0, "y": 0, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Requests - Load Balancer us-east-1",
+                  "region": "us-east-1",
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "period": 60,
+                  "stat": "Sum",
+                  "metrics": [
+                    [ "AWS/ApplicationELB", "RequestCount", "LoadBalancer", "${UsEast1LoadBalancerFullName}", { "label": "Requests" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12, "y": 0, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Requests - Load Balancer eu-central-1",
+                  "region": "eu-central-1",
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "period": 60,
+                  "stat": "Sum",
+                  "metrics": [
+                    [ "AWS/ApplicationELB", "RequestCount", "LoadBalancer", "${EuCentral1LoadBalancerFullName}", { "label": "Requests" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric",
+                "x": 0, "y": 6, "width": 12, "height": 6,
+                "properties": {
+                  "title": "CPU Utilization - ${UsEast1TargetGroupFullName} (us-east-1)",
+                  "region": "us-east-1",
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "period": 300,
+                  "yAxis": { "left": { "min": 0, "max": 100 } },
+                  "metrics": [
+                    [ "AWS/EC2", "CPUUtilization", "AutoScalingGroupName", "${UsEast1AutoScalingGroupName}", { "stat": "Average", "label": "Media" } ],
+                    [ "...", { "stat": "Maximum", "label": "Maximo" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12, "y": 6, "width": 12, "height": 6,
+                "properties": {
+                  "title": "CPU Utilization - ${EuCentral1TargetGroupFullName} (eu-central-1)",
+                  "region": "eu-central-1",
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "period": 300,
+                  "yAxis": { "left": { "min": 0, "max": 100 } },
+                  "metrics": [
+                    [ "AWS/EC2", "CPUUtilization", "AutoScalingGroupName", "${EuCentral1AutoScalingGroupName}", { "stat": "Average", "label": "Media" } ],
+                    [ "...", { "stat": "Maximum", "label": "Maximo" } ]
+                  ]
+                }
+              },
+              {
+                "type": "log",
+                "x": 0, "y": 12, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Requests por instancia (us-east-1)",
+                  "region": "us-east-1",
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "query": "SOURCE '${LogGroupName}' | filter type = 'request' and userAgent not like /ELB-HealthChecker/ | stats count(*) as requests by bin(1m), @logStream"
+                }
+              },
+              {
+                "type": "log",
+                "x": 12, "y": 12, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Requests por instancia (eu-central-1)",
+                  "region": "eu-central-1",
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "query": "SOURCE '${LogGroupName}' | filter type = 'request' and userAgent not like /ELB-HealthChecker/ | stats count(*) as requests by bin(1m), @logStream"
+                }
+              }
+            ]
+          }
+
+Outputs:
+  DashboardUrl:
+    Description: URL do painel no console do CloudWatch
+    Value:
+      Fn::Sub: "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards/dashboard/${DashboardName}"

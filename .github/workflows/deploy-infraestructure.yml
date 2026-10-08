@@ -32,6 +32,10 @@ jobs:
         run: |
           chmod +x iac/scripts/create-stack.sh
           ./iac/scripts/create-stack.sh eu-central-1
+
+      - name: Deploy CloudWatch dashboard stack
+        run: ./iac/scripts/create-stack.sh dashboard
+
   build-and-push-docker-image:
     uses: rafaellevissa/aws-sistemas-distribuidos-ssa/.github/workflows/deploy-backend.yml@main
     secrets: inherit
