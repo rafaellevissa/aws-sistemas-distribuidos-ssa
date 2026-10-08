@@ -6,31 +6,33 @@ on:
 jobs:
   destroy-infrastructure:
     runs-on: ubuntu-latest
+    
+    # --------------------------------------------------------------------------
+    # CONFIGURAÇÃO DE PARALELISMO (MATRIZ)
+    # --------------------------------------------------------------------------
+    strategy:
+      # fail-fast: false garante que se a exclusão de uma região falhar, 
+      # a outra região continuará a ser eliminada normalmente.
+      fail-fast: false
+      matrix:
+        # Define as regiões que serão processadas simultaneamente
+        region: [us-east-1, eu-central-1]
+
     steps:
+      # Step 1: Baixa o código do repositório
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Configure AWS credentials for us-east-1
+      # Step 2: Configura as credenciais da AWS dinamicamente para a região da matriz
+      - name: Configure AWS credentials for ${{ matrix.region }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ matrix.region }}
 
-      - name: Delete us-east-1 stack
+      # Step 3: Executa o script de destruição passando a região atual como parâmetro
+      - name: Delete ${{ matrix.region }} stack
         run: |
           chmod +x iac/scripts/destroy-stack.sh
-          ./iac/scripts/destroy-stack.sh us-east-1 || true
-
-      - name: Configure AWS credentials for eu-central-1
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
-
-      - name: Delete eu-central-1 stack
-        run: |
-          chmod +x iac/scripts/destroy-stack.sh
-          ./iac/scripts/destroy-stack.sh eu-central-1 || true
-
+          ./iac/scripts/destroy-stack.sh ${{ matrix.region }} || true
