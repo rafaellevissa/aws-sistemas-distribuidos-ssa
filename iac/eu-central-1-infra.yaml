@@ -143,8 +143,9 @@ Resources:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          SourceSecurityGroupId:
-            Ref: ALBSecurityGroup
+          CidrIp: 0.0.0.0/0 # Apenas didatico. Em prod, restringir IP!
+          #SourceSecurityGroupId:
+            #Ref: ALBSecurityGroup
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
