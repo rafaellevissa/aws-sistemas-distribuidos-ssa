@@ -2,7 +2,7 @@ const { S3Client } = require('@aws-sdk/client-s3');
 
 // 1. Criamos a configuração base com a região
 const config = {
-  region: process.env.AWS_REGION,
+  region: process.env.AWS_S3_REGION || process.env.AWS_REGION,
 };
 
 // 2. Verificamos se as chaves existem no ficheiro .env

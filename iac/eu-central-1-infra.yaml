@@ -313,6 +313,7 @@ Resources:
                 -e DB_PASSWORD="$DB_PASS" \
                 -e DB_NAME=aula_pratica_db \
                 -e AWS_REGION=${AWS::Region} \
+                -e AWS_S3_REGION=us-east-1 \
                 -e AWS_S3_BUCKET_NAME=aula-pratica-imagens-${AWS::AccountId} \
                 -e INSTANCE_ID=$INSTANCE_ID \
                 --log-driver=awslogs \
