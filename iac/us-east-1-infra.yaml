@@ -384,7 +384,7 @@ Resources:
               docker run -d -p 80:3000 \
                 -e DB_HOST=$DB_HOST \
                 -e DB_USER=$DB_USER \
-                -e DB_PASS=$DB_PASS \
+                -e DB_PASSWORD="$DB_PASS" \
                 -e DB_NAME=aula_pratica_db \
                 -e AWS_REGION=${AWS::Region} \
                 -e AWS_S3_BUCKET_NAME=aula-pratica-imagens-${AWS::AccountId} \
