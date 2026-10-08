@@ -321,12 +321,49 @@ Resources:
             ManagedRuleGroupStatement:
               VendorName: AWS
               Name: AWSManagedRulesCommonRuleSet
+              RuleActionOverrides:
+                - Name: SizeRestrictions_BODY
+                  ActionToUse:
+                    Count: {}
           OverrideAction:
             None: {}
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
             MetricName: AWSManagedRulesCommonRuleSetMetric
+        - Name: BlockOversizedBodyOutsideUpload
+          Priority: 2
+          Action:
+            Block: {}
+          Statement:
+            AndStatement:
+              Statements:
+                - LabelMatchStatement:
+                    Scope: LABEL
+                    Key: awswaf:managed:aws:core-rule-set:SizeRestrictions_Body
+                - NotStatement:
+                    Statement:
+                      AndStatement:
+                        Statements:
+                          - RegexMatchStatement:
+                              RegexString: '^/upload/?$'
+                              FieldToMatch:
+                                UriPath: {}
+                              TextTransformations:
+                                - Priority: 0
+                                  Type: NONE
+                          - ByteMatchStatement:
+                              SearchString: POST
+                              PositionalConstraint: EXACTLY
+                              FieldToMatch:
+                                Method: {}
+                              TextTransformations:
+                                - Priority: 0
+                                  Type: NONE
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: BlockOversizedBodyOutsideUpload
 
   WebACLAssociation:
     Type: AWS::WAFv2::WebACLAssociation
