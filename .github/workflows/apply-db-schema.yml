@@ -1,0 +1,88 @@
+name: Apply Database Schema
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: apply-database-schema
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  apply-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      AWS_REGION: us-east-1
+      STACK_NAME: caos-demo-us-east-1
+      DB_NAME: aula_pratica_db
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Resolve database and runner access
+        id: database
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUTPUTS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query 'Stacks[0].Outputs' --output json)
+          DB_HOST=$(jq -er '.[] | select(.OutputKey == "DBHost") | .OutputValue' <<< "$OUTPUTS")
+          DB_SECRET=$(jq -er '.[] | select(.OutputKey == "DBSecretName") | .OutputValue' <<< "$OUTPUTS")
+          GROUP_ID=$(aws cloudformation describe-stack-resource --stack-name "$STACK_NAME" --logical-resource-id RDSSecurityGroup --query 'StackResourceDetail.PhysicalResourceId' --output text)
+          RUNNER_IP=$(curl --fail --silent --show-error https://checkip.amazonaws.com)
+          [[ "$RUNNER_IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
+          echo "host=$DB_HOST" >> "$GITHUB_OUTPUT"
+          echo "secret=$DB_SECRET" >> "$GITHUB_OUTPUT"
+          echo "group=$GROUP_ID" >> "$GITHUB_OUTPUT"
+          echo "cidr=$RUNNER_IP/32" >> "$GITHUB_OUTPUT"
+
+      - name: Allow temporary database access from this runner
+        id: access
+        env:
+          GROUP_ID: ${{ steps.database.outputs.group }}
+          RUNNER_CIDR: ${{ steps.database.outputs.cidr }}
+        run: |
+          set -euo pipefail
+          RULE_ID=$(aws ec2 authorize-security-group-ingress --group-id "$GROUP_ID" --protocol tcp --port 3306 --cidr "$RUNNER_CIDR" --query 'SecurityGroupRules[0].SecurityGroupRuleId' --output text)
+          echo "rule=$RULE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Apply existing schema to aula_pratica_db
+        env:
+          DB_HOST: ${{ steps.database.outputs.host }}
+          DB_SECRET: ${{ steps.database.outputs.secret }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$DB_SECRET" --query SecretString --output text)
+          DB_USER=$(jq -er '.username' <<< "$SECRET_JSON")
+          DB_PASSWORD=$(jq -er '.password' <<< "$SECRET_JSON")
+          echo "::add-mask::$DB_USER"
+          echo "::add-mask::$DB_PASSWORD"
+          export DB_USER DB_PASSWORD
+          npm run db:schema
+
+      - name: Remove temporary database access
+        if: ${{ always() && steps.access.outputs.rule != '' }}
+        env:
+          GROUP_ID: ${{ steps.database.outputs.group }}
+          RULE_ID: ${{ steps.access.outputs.rule }}
+        run: |
+          aws ec2 revoke-security-group-ingress --group-id "$GROUP_ID" --security-group-rule-ids "$RULE_ID"
