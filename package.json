@@ -4,7 +4,8 @@
   "description": "API REST (CRUD de usuarios) com upload de imagem para S3 - Aula pratica Fullstack Cloud & CI/CD",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "npm run db:schema && node src/server.js",
+    "db:schema": "node src/db/apply-schema.js",
     "dev": "nodemon src/server.js"
   },
   "keywords": ["express", "mysql", "s3", "crud"],
