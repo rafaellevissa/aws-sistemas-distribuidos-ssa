@@ -4,7 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 async function applySchema(environment = process.env, createConnection = mysql.createConnection) {
-  for (const name of ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME']) {
+  for (const name of ['DB_HOST', 'DB_USER', 'DB_PASSWORD']) {
     if (!environment[name]) throw new Error(`Missing required environment variable: ${name}`);
   }
 
@@ -13,7 +13,6 @@ async function applySchema(environment = process.env, createConnection = mysql.c
     host: environment.DB_HOST,
     user: environment.DB_USER,
     password: environment.DB_PASSWORD,
-    database: environment.DB_NAME,
     port: environment.DB_PORT || 3306,
     multipleStatements: true,
   });

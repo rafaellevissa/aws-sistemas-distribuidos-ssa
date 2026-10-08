@@ -17,7 +17,6 @@ jobs:
     env:
       AWS_REGION: us-east-1
       STACK_NAME: caos-demo-us-east-1
-      DB_NAME: aula_pratica_db
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

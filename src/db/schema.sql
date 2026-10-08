@@ -1,6 +1,6 @@
 -- Execute este script no seu MySQL (RDS) para criar a tabela usada pela API.
-CREATE DATABASE IF NOT EXISTS sistemas_dist_db;
-USE sistemas_dist_db;
+CREATE DATABASE IF NOT EXISTS aula_pratica_db;
+USE aula_pratica_db;
 
 CREATE TABLE IF NOT EXISTS usuarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
