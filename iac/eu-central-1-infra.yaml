@@ -31,7 +31,7 @@ Parameters:
   SubDomainName:
     Type: String
     Description: "Subdomínio da aplicação"
-    Default: "unifan-sistemas-distribuidos2"
+    Default: "unifan-sistemas-distribuidos"
 
 Resources:
   # ========================================================================
