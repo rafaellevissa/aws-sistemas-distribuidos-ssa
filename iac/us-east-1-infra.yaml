@@ -225,6 +225,135 @@ Resources:
         IgnorePublicAcls: false
         RestrictPublicBuckets: false
 
+  BucketCleanupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EmptyAppBucket
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:ListBucketVersions
+                Resource:
+                  Fn::GetAtt: AppS3Bucket.Arn
+              - Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                  - s3:DeleteObjectVersion
+                Resource:
+                  Fn::Sub: '${AppS3Bucket.Arn}/*'
+
+  BucketCleanupFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Timeout: 900
+      Role:
+        Fn::GetAtt: BucketCleanupRole.Arn
+      Code:
+        ZipFile: |
+          const https = require('node:https');
+          const {
+            S3Client, ListObjectVersionsCommand, ListObjectsV2Command, DeleteObjectsCommand,
+          } = require('@aws-sdk/client-s3');
+          const s3 = new S3Client({});
+
+          async function deleteBatch(bucket, objects, context) {
+            if (context.getRemainingTimeInMillis() < 30000) {
+              throw new Error('Cleanup time limit reached; retry stack deletion');
+            }
+            const result = await s3.send(new DeleteObjectsCommand({
+              Bucket: bucket, Delete: { Objects: objects, Quiet: true },
+            }));
+            if (result.Errors?.length) {
+              throw new Error('S3 deletion failed: ' + result.Errors.map(error => error.Code).join(', '));
+            }
+          }
+
+          async function emptyBucket(bucket, context) {
+            while (true) {
+              const page = await s3.send(new ListObjectVersionsCommand({ Bucket: bucket, MaxKeys: 1000 }));
+              const objects = [...(page.Versions || []), ...(page.DeleteMarkers || [])]
+                .map(object => ({ Key: object.Key, VersionId: object.VersionId }));
+              if (!objects.length) break;
+              await deleteBatch(bucket, objects, context);
+            }
+            while (true) {
+              const page = await s3.send(new ListObjectsV2Command({ Bucket: bucket, MaxKeys: 1000 }));
+              const objects = (page.Contents || []).map(object => ({ Key: object.Key }));
+              if (!objects.length) break;
+              await deleteBatch(bucket, objects, context);
+            }
+          }
+
+          function respond(event, context, status, reason) {
+            const body = JSON.stringify({
+              Status: status,
+              Reason: reason || 'Bucket cleanup completed',
+              PhysicalResourceId: event.PhysicalResourceId || 'cleanup-' + event.ResourceProperties.BucketName,
+              StackId: event.StackId,
+              RequestId: event.RequestId,
+              LogicalResourceId: event.LogicalResourceId,
+              Data: {},
+            });
+            return new Promise((resolve, reject) => {
+              const request = https.request(event.ResponseURL, {
+                method: 'PUT',
+                headers: { 'content-type': '', 'content-length': Buffer.byteLength(body) },
+              }, response => {
+                response.resume();
+                response.on('end', () => {
+                  if (response.statusCode >= 200 && response.statusCode < 300) resolve();
+                  else reject(new Error('CloudFormation response failed: ' + response.statusCode));
+                });
+              });
+              request.on('error', reject);
+              request.setTimeout(Math.min(10000, context.getRemainingTimeInMillis() - 1000), () => {
+                request.destroy(new Error('CloudFormation response timed out'));
+              });
+              request.end(body);
+            });
+          }
+
+          exports.handler = async (event, context) => {
+            let status = 'SUCCESS';
+            let reason;
+            try {
+              if (event.RequestType === 'Delete') {
+                await emptyBucket(event.ResourceProperties.BucketName, context);
+              }
+            } catch (error) {
+              if (error.name !== 'NoSuchBucket') {
+                status = 'FAILED';
+                reason = String(error.message).slice(0, 1000);
+                console.error('Bucket cleanup failed:', reason);
+              }
+            }
+            await respond(event, context, status, reason);
+          };
+
+  AppBucketCleanup:
+    Type: Custom::EmptyS3Bucket
+    Properties:
+      ServiceToken:
+        Fn::GetAtt: BucketCleanupFunction.Arn
+      ServiceTimeout: 1000
+      BucketName:
+        Ref: AppS3Bucket
+
   # ========================================================================
   # 5. IAM ROLES & POLICIES
   # Dando autonomia à máquina para ler segredos e imagens sem senhas hardcoded.
@@ -435,6 +564,7 @@ Resources:
 
   AppAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: AppBucketCleanup
     Properties:
       VPCZoneIdentifier: 
         - Ref: PublicSubnet1
