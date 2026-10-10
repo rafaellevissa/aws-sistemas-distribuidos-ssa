@@ -180,7 +180,7 @@ Resources:
               - Effect: Allow
                 Action: secretsmanager:GetSecretValue
                 Resource:
-                  Fn::Sub: arn:aws:secretsmanager:${DBSecretRegion}:${AWS::AccountId}:secret:${DBSecretName}*
+                  Ref: DBSecretName
 
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
