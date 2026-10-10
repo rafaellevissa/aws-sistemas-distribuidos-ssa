@@ -65,14 +65,14 @@ if [ -n "$PARAMS" ]; then
   aws cloudformation deploy \
     --template-file "$TEMPLATE_FILE" \
     --stack-name "$STACK_NAME" \
-    --capabilities CAPABILITY_NAMED_IAM \
+    --capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM \
     --region "$REGION" \
     --parameter-overrides $PARAMS
 else
   aws cloudformation deploy \
     --template-file "$TEMPLATE_FILE" \
     --stack-name "$STACK_NAME" \
-    --capabilities CAPABILITY_NAMED_IAM \
+    --capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM \
     --region "$REGION"
 fi
 
