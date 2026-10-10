@@ -160,8 +160,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 3306
           ToPort: 3306
-          SourceSecurityGroupId:
-            Ref: EC2SecurityGroup
+          CidrIp: 0.0.0.0/0
 
   # ========================================================================
   # 3. SECRETS MANAGER & RDS (MySQL)
