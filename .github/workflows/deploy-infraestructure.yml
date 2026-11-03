@@ -5,36 +5,32 @@ on:
 jobs:
   deploy-infrastructure:
     runs-on: ubuntu-latest
+    env:
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: aws-sistemas-distribuidos-ssa/terraform.tfstate
+      TF_STATE_REGION: us-east-1
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Configure AWS credentials for us-east-1
+      # As credenciais (uma unica conta) servem para as duas regioes; o provider
+      # do Terraform seleciona a regiao por alias (us-east-1 e eu-central-1).
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Deploy us-east-1 stack
-        run: |
-          chmod +x iac/scripts/create-stack.sh
-          ./iac/scripts/create-stack.sh us-east-1
-
-      - name: Configure AWS credentials for eu-central-1
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
+          terraform_version: 1.9.8
 
-      - name: Deploy eu-central-1 stack
+      - name: Terraform apply (multi-regiao + dashboard + Route53)
         run: |
-          chmod +x iac/scripts/create-stack.sh
-          ./iac/scripts/create-stack.sh eu-central-1
-
-      - name: Deploy CloudWatch dashboard stack
-        run: ./iac/scripts/create-stack.sh dashboard
+          chmod +x iac/scripts/apply.sh
+          ./iac/scripts/apply.sh
 
   build-and-push-docker-image:
     uses: rafaellevissa/aws-sistemas-distribuidos-ssa/.github/workflows/deploy-backend.yml@main

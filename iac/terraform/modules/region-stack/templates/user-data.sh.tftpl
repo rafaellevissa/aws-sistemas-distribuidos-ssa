@@ -1,0 +1,45 @@
+#!/bin/bash
+# ============================================================================
+# 8. USER DATA (Imutabilidade)
+# O servidor nasce, instala tudo, puxa a imagem e sobe o container.
+# ============================================================================
+
+# 1. Update e instalacao do Docker e AWS CLI
+apt-get update -y
+apt-get install docker.io awscli jq -y
+usermod -aG docker ubuntu
+systemctl enable docker
+systemctl start docker
+
+# 2. Pegar as credenciais do DB no Secrets Manager
+SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ${db_secret_name} --region ${db_secret_region} --query SecretString --output text)
+DB_USER=$(echo $SECRET_JSON | jq -r .username)
+DB_PASS=$(echo $SECRET_JSON | jq -r .password)
+DB_HOST=${db_host}
+
+# 3. Login no ECR e pull da imagem
+aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${account_id}.dkr.ecr.${region}.amazonaws.com
+IMAGE_URI="${image_uri}"
+
+docker pull $IMAGE_URI || true
+
+# 4. ID da instancia (IMDSv2) para log stream dedicado por instancia
+IMDS_TOKEN=$(curl -s -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+INSTANCE_ID=$(echo "$INSTANCE_ID" | grep -E '^i-[0-9a-f]+$' || hostname)
+
+# 5. Iniciar container injetando os segredos
+docker run -d -p 80:3000 \
+  -e DB_HOST=$DB_HOST \
+  -e DB_USER=$DB_USER \
+  -e DB_PASSWORD="$DB_PASS" \
+  -e DB_NAME=${db_name} \
+  -e AWS_REGION=${region} \
+  -e AWS_S3_REGION=${s3_bucket_region} \
+  -e AWS_S3_BUCKET_NAME=${s3_bucket_name} \
+  -e INSTANCE_ID=$INSTANCE_ID \
+  --log-driver=awslogs \
+  --log-opt awslogs-region=${region} \
+  --log-opt awslogs-group=${log_group_name} \
+  --log-opt awslogs-stream=$INSTANCE_ID \
+  --name unifan-api $IMAGE_URI

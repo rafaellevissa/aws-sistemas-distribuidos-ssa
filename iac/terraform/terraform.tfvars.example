@@ -1,0 +1,21 @@
+# Copie para terraform.tfvars e ajuste conforme necessario.
+# Todos os valores abaixo tem defaults equivalentes ao CloudFormation original.
+
+environment_name    = "caos-demo-unifan"
+ecr_repository_name = "unifan-sistemas-distribuidos-terraform"
+image_tag           = "latest"
+
+instance_type = "t2.micro"
+asg_min_size  = 2
+asg_max_size  = 5
+
+db_instance_class    = "db.t3.micro"
+db_allocated_storage = 20
+db_name              = "aula_pratica_db"
+db_multi_az          = false
+
+# s3_bucket_name vazio => usa aula-pratica-imagens-<account_id>
+# s3_bucket_name = ""
+
+domain_name    = "rafaellevi.com.br"
+subdomain_name = "unifan-sistemas-distribuidos"

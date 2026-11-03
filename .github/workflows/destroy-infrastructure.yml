@@ -1,56 +1,31 @@
 name: Destroy Infrastructure
-
 on:
   workflow_dispatch:
 
 jobs:
-  destroy-dashboard:
+  destroy-infrastructure:
     runs-on: ubuntu-latest
+    env:
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: aws-sistemas-distribuidos-ssa/terraform.tfstate
+      TF_STATE_REGION: us-east-1
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Configure AWS credentials for us-east-1
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Delete dashboard stack
-        run: |
-          chmod +x iac/scripts/destroy-stack.sh
-          ./iac/scripts/destroy-stack.sh dashboard || true
-
-  destroy-infrastructure:
-    runs-on: ubuntu-latest
-    
-    # --------------------------------------------------------------------------
-    # CONFIGURAÇÃO DE PARALELISMO (MATRIZ)
-    # --------------------------------------------------------------------------
-    strategy:
-      # fail-fast: false garante que se a exclusão de uma região falhar, 
-      # a outra região continuará a ser eliminada normalmente.
-      fail-fast: false
-      matrix:
-        # Define as regiões que serão processadas simultaneamente
-        region: [us-east-1, eu-central-1]
-
-    steps:
-      # Step 1: Baixa o código do repositório
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      # Step 2: Configura as credenciais da AWS dinamicamente para a região da matriz
-      - name: Configure AWS credentials for ${{ matrix.region }}
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ matrix.region }}
+          terraform_version: 1.9.8
 
-      # Step 3: Executa o script de destruição passando a região atual como parâmetro
-      - name: Delete ${{ matrix.region }} stack
+      - name: Terraform destroy (toda a infraestrutura)
         run: |
-          chmod +x iac/scripts/destroy-stack.sh
-          ./iac/scripts/destroy-stack.sh ${{ matrix.region }} || true
+          chmod +x iac/scripts/destroy.sh
+          ./iac/scripts/destroy.sh
