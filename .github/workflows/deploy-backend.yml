@@ -18,7 +18,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # So aguarda quando o ECR acabou de ser criado pelo Terraform (Deploy Infrastructure).
+      # No fluxo Deploy Infrastructure este job roda em paralelo ao terraform apply;
+      # o delay de ~20s da tempo do terraform criar o ECR antes do build/push.
       # No fluxo de push direto o ECR ja existe, entao nao ha espera.
       - name: Wait for ECR availability
         if: ${{ inputs.wait-for-ecr }}
