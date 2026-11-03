@@ -45,9 +45,25 @@ docker run -p 3000:3000 --env-file .env api-backend
 
 ## Deploy
 
+A infraestrutura é provisionada com **Terraform** (multi-região us-east-1 +
+eu-central-1, com ALB, ASG multi-AZ, RDS, ECR, S3, WAF, Route53 e dashboard do
+CloudWatch). Veja [`iac/terraform/README.md`](iac/terraform/README.md) para o
+passo a passo completo.
+
+Resumo:
+
+```bash
+# 1. Provisionar toda a infraestrutura
+export TF_STATE_BUCKET=SEU-BUCKET-DE-TFSTATE
+./iac/scripts/apply.sh
+
+# 2. Aplicar o schema no banco (ou via workflow "Apply Database Schema")
+# 3. Build/push da imagem + rolling refresh das instâncias
+./iac/scripts/refresh-instances.sh us-east-1
+```
+
 O pipeline em `.github/workflows/deploy-backend.yml` builda a imagem, publica no ECR
-com tag semântica e faz o deploy via SSH em uma instância EC2. Veja o `README.md`
-na raiz do projeto para o passo a passo completo.
+com tag semântica e dispara um *rolling instance refresh* no ASG de cada região.
 
 
 ## Explicação em vídeo
