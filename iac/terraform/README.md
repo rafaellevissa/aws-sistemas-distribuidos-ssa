@@ -129,8 +129,9 @@ iam:PutRolePolicy         iam:DeleteRolePolicy      iam:GetRolePolicy
 iam:ListRolePolicies      iam:ListAttachedRolePolicies
 iam:AttachRolePolicy      iam:DetachRolePolicy
 iam:CreateInstanceProfile iam:DeleteInstanceProfile iam:GetInstanceProfile
+iam:TagInstanceProfile    iam:UntagInstanceProfile  iam:ListInstanceProfileTags
 iam:AddRoleToInstanceProfile iam:RemoveRoleFromInstanceProfile
-iam:ListInstanceProfilesForRole
+iam:ListInstanceProfiles  iam:ListInstanceProfilesForRole
 iam:PassRole              # para o EC2/ASG assumir a instance profile
 ```
 
