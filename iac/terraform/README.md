@@ -134,10 +134,10 @@ iam:ListInstanceProfilesForRole
 iam:PassRole              # para o EC2/ASG assumir a instance profile
 ```
 
-- **Deploy Infrastructure** → `terraform apply` (todas as regiões + dashboard + Route53)
-  e **depois** (via `needs`) o build/push da imagem. O job de build só inicia após o
-  `apply` concluir — ou seja, com o **ECR já criado** — e ainda aguarda ~20s
-  (`wait-for-ecr: true`) como margem para a consistência do repositório recém-criado.
+- **Deploy Infrastructure** → roda **em paralelo** dois jobs: `terraform apply`
+  (todas as regiões + dashboard + Route53) e o build/push da imagem. O job de build
+  **não** usa `needs`; em vez disso aguarda ~20s no início (`wait-for-ecr: true`)
+  para dar tempo do Terraform criar o ECR antes do `docker push`.
 - **Destroy Infrastructure** → `terraform destroy`.
 - **Apply Database Schema** → lê `db_host`/`db_secret_name`/`rds_security_group_id`
   dos outputs do Terraform e aplica `src/db/schema.sql`.
