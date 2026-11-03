@@ -6,6 +6,10 @@ on:
       refresh-instances:
         type: boolean
         default: true
+      wait-for-ecr:
+        description: "Aguarda ~20s para a consistencia do ECR recem-criado pelo Terraform (usado no Deploy Infrastructure)."
+        type: boolean
+        default: false
   push:
     branches: [ "main" ]
 
@@ -14,7 +18,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: waiting time to avoid ECR creating time
+      # So aguarda quando o ECR acabou de ser criado pelo Terraform (Deploy Infrastructure).
+      # No fluxo de push direto o ECR ja existe, entao nao ha espera.
+      - name: Wait for ECR availability
+        if: ${{ inputs.wait-for-ecr }}
         run: sleep 20
 
       - name: Checkout code

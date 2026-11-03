@@ -105,7 +105,10 @@ adicione:
 |--------|-----------|
 | `TF_STATE_BUCKET` | Nome do bucket S3 onde o state é guardado |
 
-- **Deploy Infrastructure** → `terraform apply` (todas as regiões + dashboard + Route53).
+- **Deploy Infrastructure** → `terraform apply` (todas as regiões + dashboard + Route53)
+  e **depois** (via `needs`) o build/push da imagem. O job de build só inicia após o
+  `apply` concluir — ou seja, com o **ECR já criado** — e ainda aguarda ~20s
+  (`wait-for-ecr: true`) como margem para a consistência do repositório recém-criado.
 - **Destroy Infrastructure** → `terraform destroy`.
 - **Apply Database Schema** → lê `db_host`/`db_secret_name`/`rds_security_group_id`
   dos outputs do Terraform e aplica `src/db/schema.sql`.
