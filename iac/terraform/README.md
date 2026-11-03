@@ -105,7 +105,39 @@ adicione:
 |--------|-----------|
 | `TF_STATE_BUCKET` | Nome do bucket S3 onde o state é guardado |
 
-- **Deploy Infrastructure** → `terraform apply` (todas as regiões + dashboard + Route53).
+### Permissões IAM do usuário/role do pipeline
+
+> **Por que o Terraform precisa de mais permissões IAM que o CloudFormation?**
+> O CloudFormation é um serviço gerenciado: ao deletar uma stack, ele inspeciona e
+> remove os recursos **com o contexto do próprio serviço**, então o seu usuário só
+> precisava de `cloudformation:*`. O Terraform roda **como o seu usuário**, chamando
+> as APIs da AWS diretamente — e tanto no `refresh` quanto no `destroy` ele faz
+> chamadas de **leitura** para "hidratar" e desmontar os recursos (ex.:
+> `iam:ListRolePolicies`, `iam:ListInstanceProfilesForRole`). Por isso o usuário do
+> pipeline precisa dessas ações explicitamente.
+
+Além das permissões para EC2/VPC, ELB, RDS, S3, ECR, Secrets Manager, WAFv2,
+CloudWatch, Route53, Logs e SSM (leitura do parâmetro da AMI), o usuário precisa
+das ações IAM abaixo (recorte específico para esta stack). O JSON completo está em
+[`iam-pipeline-policy.json`](iam-pipeline-policy.json):
+
+```
+# Ciclo de vida da role, instance profile e policies desta stack:
+iam:CreateRole            iam:DeleteRole            iam:GetRole
+iam:TagRole               iam:UntagRole             iam:ListRoleTags
+iam:PutRolePolicy         iam:DeleteRolePolicy      iam:GetRolePolicy
+iam:ListRolePolicies      iam:ListAttachedRolePolicies
+iam:AttachRolePolicy      iam:DetachRolePolicy
+iam:CreateInstanceProfile iam:DeleteInstanceProfile iam:GetInstanceProfile
+iam:AddRoleToInstanceProfile iam:RemoveRoleFromInstanceProfile
+iam:ListInstanceProfilesForRole
+iam:PassRole              # para o EC2/ASG assumir a instance profile
+```
+
+- **Deploy Infrastructure** → `terraform apply` (todas as regiões + dashboard + Route53)
+  e **depois** (via `needs`) o build/push da imagem. O job de build só inicia após o
+  `apply` concluir — ou seja, com o **ECR já criado** — e ainda aguarda ~20s
+  (`wait-for-ecr: true`) como margem para a consistência do repositório recém-criado.
 - **Destroy Infrastructure** → `terraform destroy`.
 - **Apply Database Schema** → lê `db_host`/`db_secret_name`/`rds_security_group_id`
   dos outputs do Terraform e aplica `src/db/schema.sql`.

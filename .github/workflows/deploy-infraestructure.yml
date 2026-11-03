@@ -33,7 +33,11 @@ jobs:
           ./iac/scripts/apply.sh
 
   build-and-push-docker-image:
+    # So inicia depois do terraform apply criar o ECR (resolve a causa raiz da corrida).
+    needs: deploy-infrastructure
     uses: rafaellevissa/aws-sistemas-distribuidos-ssa/.github/workflows/deploy-backend.yml@main
     with:
       refresh-instances: false
+      # Margem de ~20s para a consistencia do ECR recem-criado pelo Terraform.
+      wait-for-ecr: true
     secrets: inherit
