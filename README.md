@@ -43,6 +43,12 @@ docker build -t api-backend .
 docker run -p 3000:3000 --env-file .env api-backend
 ```
 
+## Deploy guiado com o Kiro
+
+Este repositório inclui um **kit para o Kiro conduzir o deploy** de uma API REST (com Dockerfile) na AWS,
+com guardrails (steering, permissões de agente, hooks e CI). No Kiro, digite `/deploy-rest-api`.
+Documentação em [`docs/kiro-deploy/`](docs/kiro-deploy/README.md).
+
 ## Deploy
 
 A infraestrutura é provisionada com **Terraform** (multi-região us-east-1 +

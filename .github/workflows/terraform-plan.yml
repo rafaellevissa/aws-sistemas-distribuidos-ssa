@@ -1,0 +1,67 @@
+name: Terraform Plan
+
+# Gate de revisao antes do apply: mostra o que o Terraform VAI criar/alterar/destruir, sem aplicar nada.
+# Disparo manual. Usa as mesmas credenciais do pipeline (somente leitura do state + chamadas de leitura).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    env:
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: aws-sistemas-distribuidos-ssa/terraform.tfstate
+      TF_STATE_REGION: us-east-1
+    defaults:
+      run:
+        working-directory: iac/terraform
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: terraform init
+        run: |
+          terraform init -input=false -reconfigure \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="key=${TF_STATE_KEY}" \
+            -backend-config="region=${TF_STATE_REGION}" \
+            -backend-config="encrypt=true"
+
+      - name: terraform validate
+        run: terraform validate
+
+      - name: terraform plan
+        id: plan
+        run: terraform plan -input=false -no-color -out=tfplan | tee plan.txt
+
+      - name: Resumo do plano
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Terraform Plan"
+            echo
+            echo '```'
+            grep -E '^(Plan:|No changes|Error)' plan.txt || echo "Plano nao gerado (veja os logs)."
+            echo '```'
+            echo
+            echo "Recursos a destruir ou substituir (revise com atencao):"
+            echo '```'
+            grep -E 'will be destroyed|must be replaced' plan.txt || echo "Nenhum."
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

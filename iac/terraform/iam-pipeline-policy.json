@@ -1,31 +1,10 @@
 {
   "Version": "2012-10-17",
-  "Comment": "Permissoes IAM minimas que o usuario/role do pipeline precisa para rodar terraform apply, refresh e destroy desta stack. As acoes iam:List*/Get* de leitura sao exigidas pelo provider AWS durante o refresh e o destroy (o CloudFormation nao exigia porque agia com o contexto do proprio servico).",
   "Statement": [
     {
-      "Sid": "IamRoleInstanceProfileLifecycle",
+      "Sid": "IamRoleInstanceProfileFullLifecycleScoped",
       "Effect": "Allow",
-      "Action": [
-        "iam:CreateRole",
-        "iam:DeleteRole",
-        "iam:GetRole",
-        "iam:TagRole",
-        "iam:UntagRole",
-        "iam:ListRoleTags",
-        "iam:PutRolePolicy",
-        "iam:DeleteRolePolicy",
-        "iam:GetRolePolicy",
-        "iam:ListRolePolicies",
-        "iam:ListAttachedRolePolicies",
-        "iam:AttachRolePolicy",
-        "iam:DetachRolePolicy",
-        "iam:CreateInstanceProfile",
-        "iam:DeleteInstanceProfile",
-        "iam:GetInstanceProfile",
-        "iam:AddRoleToInstanceProfile",
-        "iam:RemoveRoleFromInstanceProfile",
-        "iam:ListInstanceProfilesForRole"
-      ],
+      "Action": "iam:*",
       "Resource": [
         "arn:aws:iam::847371060644:role/caos-demo-unifan-ec2-*",
         "arn:aws:iam::847371060644:instance-profile/caos-demo-unifan-ec2-*"

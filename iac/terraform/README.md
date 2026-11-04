@@ -117,22 +117,32 @@ adicione:
 > pipeline precisa dessas ações explicitamente.
 
 Além das permissões para EC2/VPC, ELB, RDS, S3, ECR, Secrets Manager, WAFv2,
-CloudWatch, Route53, Logs e SSM (leitura do parâmetro da AMI), o usuário precisa
-das ações IAM abaixo (recorte específico para esta stack). O JSON completo está em
-[`iam-pipeline-policy.json`](iam-pipeline-policy.json):
+CloudWatch, Route53, Logs e SSM (leitura do parâmetro da AMI), o usuário precisa de
+`iam:*` **restrito aos recursos desta stack** — o que cobre todas as ações de ciclo
+de vida, tagging e leitura que o provider AWS chama (`CreateRole`, `TagInstanceProfile`,
+`List*`, `Get*`, `Delete*`...) sem precisar enumerá-las uma a uma. O escopo de
+`Resource` mantém a segurança (só mexe nos recursos `caos-demo-unifan-ec2-*`). O JSON
+completo está em [`iam-pipeline-policy.json`](iam-pipeline-policy.json):
 
+```json
+{
+  "Effect": "Allow",
+  "Action": "iam:*",
+  "Resource": [
+    "arn:aws:iam::847371060644:role/caos-demo-unifan-ec2-*",
+    "arn:aws:iam::847371060644:instance-profile/caos-demo-unifan-ec2-*"
+  ]
+}
 ```
-# Ciclo de vida da role, instance profile e policies desta stack:
-iam:CreateRole            iam:DeleteRole            iam:GetRole
-iam:TagRole               iam:UntagRole             iam:ListRoleTags
-iam:PutRolePolicy         iam:DeleteRolePolicy      iam:GetRolePolicy
-iam:ListRolePolicies      iam:ListAttachedRolePolicies
-iam:AttachRolePolicy      iam:DetachRolePolicy
-iam:CreateInstanceProfile iam:DeleteInstanceProfile iam:GetInstanceProfile
-iam:AddRoleToInstanceProfile iam:RemoveRoleFromInstanceProfile
-iam:ListInstanceProfilesForRole
-iam:PassRole              # para o EC2/ASG assumir a instance profile
-```
+
+Mais o `iam:PassRole` (statement separado, para o EC2/ASG assumir a instance profile).
+
+> **⚠️ Esta policy precisa ser aplicada manualmente ao usuário/role do pipeline no
+> console IAM (ou via CLI).** O arquivo `iam-pipeline-policy.json` é documentação; o
+> Terraform não gerencia as permissões do próprio executor. Depois de atualizar a
+> policy, aguarde alguns segundos para a propagação e rode o pipeline de novo. Se o
+> erro persistir com o mesmo `RequestID`/authorization id, a policy ainda não foi
+> aplicada de fato ou o run anterior reusou credenciais antigas.
 
 - **Deploy Infrastructure** → roda **em paralelo** dois jobs: `terraform apply`
   (todas as regiões + dashboard + Route53) e o build/push da imagem. O job de build
