@@ -1,0 +1,54 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "bloquear-comandos-perigosos",
+      "trigger": "PreToolUse",
+      "matcher": "shell",
+      "action": {
+        "type": "command",
+        "command": ".kiro/hooks/block-dangerous-commands.sh"
+      },
+      "timeout_ms": 10000
+    },
+    {
+      "name": "bloquear-leitura-de-segredos",
+      "trigger": "PreToolUse",
+      "matcher": "read",
+      "action": {
+        "type": "command",
+        "command": ".kiro/hooks/block-sensitive-files.sh"
+      },
+      "timeout_ms": 10000
+    },
+    {
+      "name": "bloquear-escrita-de-segredos",
+      "trigger": "PreToolUse",
+      "matcher": "write",
+      "action": {
+        "type": "command",
+        "command": ".kiro/hooks/block-sensitive-files.sh"
+      },
+      "timeout_ms": 10000
+    },
+    {
+      "name": "terraform-fmt-ao-salvar",
+      "trigger": "PostFileSave",
+      "matcher": "\\.tf$",
+      "action": {
+        "type": "command",
+        "command": ".kiro/hooks/tf-fmt.sh"
+      },
+      "timeout_ms": 30000
+    },
+    {
+      "name": "revisar-permissoes-iam",
+      "trigger": "PostFileSave",
+      "matcher": "(iam|policy)[^/]*\\.(tf|json)$",
+      "action": {
+        "type": "agent",
+        "prompt": "Um arquivo de IAM/policy foi alterado. Revise rapidamente: (1) ha 'Action: *' ou 'Resource: *' sem justificativa? (2) o escopo de Resource usa o prefixo do ambiente? (3) iam:PassRole tem a condicao iam:PassedToService? Se encontrar algo, aponte o arquivo e a linha e proponha a correcao. Nao altere o arquivo sem o dev pedir."
+      }
+    }
+  ]
+}

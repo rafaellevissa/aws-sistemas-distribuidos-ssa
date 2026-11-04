@@ -1,0 +1,45 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IamRoleInstanceProfileScoped",
+      "Effect": "Allow",
+      "Action": "iam:*",
+      "Resource": [
+        "arn:aws:iam::ACCOUNT_ID:role/ENVIRONMENT_NAME-ec2-*",
+        "arn:aws:iam::ACCOUNT_ID:instance-profile/ENVIRONMENT_NAME-ec2-*"
+      ]
+    },
+    {
+      "Sid": "PassRoleToEc2",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/ENVIRONMENT_NAME-ec2-*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ec2.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "ServicosDaStackDidatico",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:*",
+        "elasticloadbalancing:*",
+        "autoscaling:*",
+        "rds:*",
+        "s3:*",
+        "ecr:*",
+        "secretsmanager:*",
+        "wafv2:*",
+        "logs:*",
+        "cloudwatch:*",
+        "route53:*",
+        "ssm:GetParameter",
+        "ssm:GetParameters"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

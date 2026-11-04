@@ -1,0 +1,43 @@
+# Contrato de deploy da API. Copie para ./deploy-config.yaml (raiz do repo) e preencha.
+# NAO coloque segredos aqui (senhas, chaves, tokens). Este arquivo e versionado.
+
+app:
+  name: minha-api                 # slug em minusculas; vira prefixo de nomes
+  repository: dono/minha-api      # owner/repo no GitHub
+  container_port: 3000            # porta em que o servidor escuta (EXPOSE no Dockerfile)
+  health_check_path: /            # deve responder 200 sem auth e sem depender do banco
+  env_vars:                       # nomes das variaveis que a API le (sem valores)
+    - DB_HOST
+    - DB_USER
+    - DB_PASSWORD
+    - DB_NAME
+    - AWS_REGION
+
+infra:
+  environment_name: minha-api-demo   # prefixo dos recursos (role/instance profile seguem este prefixo)
+  primary_region: us-east-1
+  secondary_regions: []              # ex.: [eu-central-1]. Vazio = uma regiao (mais barato)
+  instance_type: t2.micro
+  asg:
+    min: 2                           # >= 2 para ter redundancia entre AZs
+    max: 5
+  database:
+    enabled: true                    # RDS MySQL na regiao primaria
+    instance_class: db.t3.micro
+    multi_az: false                  # true = HA do banco (custa mais)
+  object_storage:
+    enabled: false                   # bucket S3 (ex.: upload de imagens)
+  dns:
+    enabled: false
+    domain: ""                       # hosted zone JA EXISTENTE no Route53
+    subdomain: ""
+  waf: true
+  dashboard: true
+
+aws:
+  account_id: "000000000000"         # 12 digitos (nao e segredo, mas confirme com o dev)
+  state_bucket: ""                   # bucket S3 do state, criado antes do primeiro apply
+  state_region: us-east-1
+
+lifecycle:
+  temporary: true                    # true = demo/palestra/teste: lembrar de destruir ao final

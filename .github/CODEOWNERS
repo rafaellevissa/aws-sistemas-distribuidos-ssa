@@ -1,0 +1,6 @@
+# Guardrails e infraestrutura exigem revisao do dono do repositorio.
+# Para que isso seja obrigatorio: Settings > Branches > Branch protection > "Require review from Code Owners".
+/.kiro/                  @rafaellevissa
+/iac/                    @rafaellevissa
+/.github/workflows/      @rafaellevissa
+/.github/CODEOWNERS      @rafaellevissa

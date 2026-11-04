@@ -1,0 +1,68 @@
+name: Terraform CI
+
+# Guardrail que vale em qualquer superficie (IDE, CLI, Web): os hooks do Kiro nao rodam no Kiro Web,
+# entao o PR e validado aqui. Nao usa credenciais AWS.
+on:
+  pull_request:
+    paths:
+      - "iac/**"
+      - ".github/workflows/**"
+      - ".kiro/**"
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: fmt + validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iac/terraform
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: terraform fmt (check)
+        run: terraform fmt -recursive -check -diff
+
+      - name: terraform init (sem backend)
+        run: terraform init -backend=false -input=false
+
+      - name: terraform validate
+        run: terraform validate
+
+  secrets-guard:
+    name: arquivos sensiveis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Falha se houver arquivos sensiveis versionados
+        shell: bash
+        run: |
+          set -euo pipefail
+          BAD=$(git ls-files | grep -Ei '(^|/)(\.env|\.env\.(local|prod|production|dev|development|staging)|[^/]*\.pem|[^/]*\.tfstate(\.backup)?|terraform\.tfvars|[^/]*\.auto\.tfvars|backend\.hcl)$' || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::Arquivos sensiveis versionados:"
+            echo "$BAD"
+            exit 1
+          fi
+          echo "Nenhum arquivo sensivel versionado."
+
+      - name: Falha se houver chaves AWS no codigo
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nE 'AKIA[0-9A-Z]{16}' -- . ':!*.md' >/dev/null; then
+            echo "::error::Possivel access key AWS (AKIA...) encontrada no codigo."
+            git grep -nE 'AKIA[0-9A-Z]{16}' -- . ':!*.md' | sed -E 's/(AKIA[0-9A-Z]{4})[0-9A-Z]{12}/\1************/'
+            exit 1
+          fi
+          echo "Nenhuma access key AWS encontrada."
